@@ -47,22 +47,29 @@ log_info "Configuring Graphviz for Wasm..."
 mkdir -p "${BUILD_DIR}/graphviz"
 
 # Emscripten cmake toolchain settings
-# Disable optional dependencies that don't work well in Wasm
+# Use minimal configuration to avoid compatibility issues
 emcmake cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
-    "${GV_CMAKE_COMMON_ARGS[@]}" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    -DBUILD_SHARED_LIBS=OFF \
     -DCMAKE_C_FLAGS="-O2" \
     -DCMAKE_CXX_FLAGS="-O2" \
     -DCMAKE_INSTALL_PREFIX="${BUILD_DIR}/graphviz-install" \
     -Denable_ltdl=OFF \
+    -Dwith_smyrna=OFF \
+    -Dwith_digcola=ON \
+    -Dwith_ortho=ON \
+    -Dwith_sfdp=ON \
     -Dwith_expat=OFF \
     -Dwith_zlib=OFF \
-    -Dwith_pangocairo=OFF
+    -Dwith_pangocairo=OFF || { log_error "CMake configuration failed"; exit 1; }
 
 # Step 3: Build Graphviz targets
 log_info "Building Graphviz library targets..."
 GV_TARGETS=("${GV_LIB_TARGETS[@]}")
-emmake cmake --build "${BUILD_DIR}/graphviz" --parallel "$(nproc)" \
-    --target "${GV_TARGETS[@]}"
+JOBS=${JOBS:-$(nproc 2>/dev/null || echo 4)}
+emmake cmake --build "${BUILD_DIR}/graphviz" --parallel "$JOBS" \
+    --target "${GV_TARGETS[@]}" || { log_error "Build failed"; exit 1; }
 
 GV_INSTALL="${BUILD_DIR}/graphviz-install"
 install_graphviz_headers "${GV_PATCHED}" "${BUILD_DIR}/graphviz" "${GV_INSTALL}"
