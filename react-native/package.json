@@ -27,7 +27,9 @@
     "typescript": "tsc --noEmit",
     "build": "bob build",
     "prepare": "bob build",
-    "lint": "eslint \"src/**/*.{ts,tsx}\""
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "fmt": "prettier --write src",
+    "test": "jest"
   },
   "keywords": [
     "react-native",

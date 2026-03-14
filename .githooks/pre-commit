@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# Rust
+echo "  → Rust fmt..."
+cd rust/graphviz && cargo fmt --check && cd ../..
+
+echo "  → Rust clippy..."
+cd rust/graphviz && cargo clippy --lib && cd ../..
+
+# Web
+echo "  → Web typecheck..."
+cd web && npm run typecheck && cd ..
+
+# React Native
+echo "  → React Native typecheck..."
+cd react-native && npm run typescript && cd ..
+
+echo "✓ All checks passed!"
