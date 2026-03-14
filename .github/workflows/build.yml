@@ -111,9 +111,7 @@ jobs:
           sudo apt-get install -y cmake build-essential bison flex pkg-config curl
 
       - name: Setup NDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: ndk;25.2.9519653
+        run: yes | sdkmanager "ndk;25.2.9519653" > /dev/null 2>&1 || true
 
       - name: Build
         run: |
