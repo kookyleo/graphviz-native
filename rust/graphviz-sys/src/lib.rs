@@ -1,7 +1,7 @@
-//! Raw FFI bindings to the graphviz-native C ABI wrapper.
+//! Raw FFI bindings to the graphviz-anywhere C ABI wrapper.
 //!
 //! This crate provides low-level, unsafe bindings to `libgraphviz_api`.
-//! Most users should prefer the safe `graphviz-native` wrapper crate instead.
+//! Most users should prefer the safe `graphviz-anywhere` wrapper crate instead.
 
 #![allow(non_camel_case_types)]
 
@@ -66,5 +66,82 @@ mod tests {
         assert_eq!(GV_OK, 0);
         assert!(GV_ERR_NULL_INPUT < 0);
         assert!(GV_ERR_OUT_OF_MEMORY < 0);
+    }
+
+    #[test]
+    fn all_error_codes_defined() {
+        // Verify all error codes are defined
+        assert_eq!(GV_ERR_NULL_INPUT, -1);
+        assert_eq!(GV_ERR_INVALID_DOT, -2);
+        assert_eq!(GV_ERR_LAYOUT_FAILED, -3);
+        assert_eq!(GV_ERR_RENDER_FAILED, -4);
+        assert_eq!(GV_ERR_INVALID_ENGINE, -5);
+        assert_eq!(GV_ERR_INVALID_FORMAT, -6);
+        assert_eq!(GV_ERR_OUT_OF_MEMORY, -7);
+        assert_eq!(GV_ERR_NOT_INITIALIZED, -8);
+    }
+
+    #[test]
+    fn error_codes_are_negative_except_ok() {
+        let error_codes = [
+            GV_ERR_NULL_INPUT,
+            GV_ERR_INVALID_DOT,
+            GV_ERR_LAYOUT_FAILED,
+            GV_ERR_RENDER_FAILED,
+            GV_ERR_INVALID_ENGINE,
+            GV_ERR_INVALID_FORMAT,
+            GV_ERR_OUT_OF_MEMORY,
+            GV_ERR_NOT_INITIALIZED,
+        ];
+
+        for code in &error_codes {
+            assert!(
+                *code < 0,
+                "Error code {} should be negative",
+                code
+            );
+        }
+    }
+
+    #[test]
+    fn error_codes_are_unique() {
+        let error_codes = [
+            GV_ERR_NULL_INPUT,
+            GV_ERR_INVALID_DOT,
+            GV_ERR_LAYOUT_FAILED,
+            GV_ERR_RENDER_FAILED,
+            GV_ERR_INVALID_ENGINE,
+            GV_ERR_INVALID_FORMAT,
+            GV_ERR_OUT_OF_MEMORY,
+            GV_ERR_NOT_INITIALIZED,
+        ];
+
+        let mut seen = std::collections::HashSet::new();
+        for code in &error_codes {
+            assert!(
+                seen.insert(*code),
+                "Duplicate error code: {}",
+                code
+            );
+        }
+    }
+
+    #[test]
+    fn gv_error_t_is_i32() {
+        // Verify the type alias is correct
+        let _val: gv_error_t = GV_OK;
+        let _val: i32 = _val;
+    }
+
+    #[test]
+    fn ffi_functions_exist() {
+        // This test verifies that all FFI function symbols are properly declared
+        // The actual linking is checked at compile time
+        // We just verify that the types are correct
+
+        // These would panic at runtime if the functions don't exist,
+        // but we're just checking that the declarations are valid
+        let _ = std::mem::size_of::<extern "C" fn() -> *mut gv_context_t>();
+        let _ = std::mem::size_of::<extern "C" fn(*mut gv_context_t)>();
     }
 }

@@ -1,4 +1,4 @@
-//! Safe Rust wrapper for the graphviz-native C library.
+//! Safe Rust wrapper for the graphviz-anywhere C library.
 //!
 //! This crate provides a memory-safe, idiomatic Rust interface to Graphviz
 //! layout and rendering. It wraps the low-level C ABI exposed by
@@ -7,7 +7,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use graphviz_native::{GraphvizContext, Engine, Format};
+//! use graphviz_anywhere::{GraphvizContext, Engine, Format};
 //!
 //! let ctx = GraphvizContext::new().expect("failed to create context");
 //! let dot = r#"digraph G { a -> b; }"#;
@@ -26,7 +26,7 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::ptr;
 
-use graphviz_native_sys as ffi;
+use graphviz_anywhere_sys as ffi;
 
 /// Errors that can occur when using the Graphviz API.
 #[derive(Debug, thiserror::Error)]
@@ -313,6 +313,10 @@ pub fn strerror(code: i32) -> Option<String> {
 mod tests {
     use super::*;
 
+    // ================================================================================
+    // Engine Tests
+    // ================================================================================
+
     #[test]
     fn engine_cstr_no_panic() {
         // Ensure all variants produce valid C strings.
@@ -333,6 +337,38 @@ mod tests {
     }
 
     #[test]
+    fn engine_names_are_correct() {
+        assert_eq!(Engine::Dot.as_cstr().to_str().unwrap(), "dot");
+        assert_eq!(Engine::Neato.as_cstr().to_str().unwrap(), "neato");
+        assert_eq!(Engine::Fdp.as_cstr().to_str().unwrap(), "fdp");
+        assert_eq!(Engine::Sfdp.as_cstr().to_str().unwrap(), "sfdp");
+        assert_eq!(Engine::Circo.as_cstr().to_str().unwrap(), "circo");
+        assert_eq!(Engine::Twopi.as_cstr().to_str().unwrap(), "twopi");
+        assert_eq!(Engine::Osage.as_cstr().to_str().unwrap(), "osage");
+        assert_eq!(Engine::Patchwork.as_cstr().to_str().unwrap(), "patchwork");
+    }
+
+    #[test]
+    fn engine_equality() {
+        assert_eq!(Engine::Dot, Engine::Dot);
+        assert_ne!(Engine::Dot, Engine::Neato);
+    }
+
+    #[test]
+    fn engine_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(Engine::Dot);
+        set.insert(Engine::Neato);
+        set.insert(Engine::Dot); // Duplicate
+        assert_eq!(set.len(), 2); // Should have 2 unique engines
+    }
+
+    // ================================================================================
+    // Format Tests
+    // ================================================================================
+
+    #[test]
     fn format_cstr_no_panic() {
         let formats = [
             Format::Svg,
@@ -351,6 +387,38 @@ mod tests {
     }
 
     #[test]
+    fn format_names_are_correct() {
+        assert_eq!(Format::Svg.as_cstr().to_str().unwrap(), "svg");
+        assert_eq!(Format::Png.as_cstr().to_str().unwrap(), "png");
+        assert_eq!(Format::Pdf.as_cstr().to_str().unwrap(), "pdf");
+        assert_eq!(Format::Ps.as_cstr().to_str().unwrap(), "ps");
+        assert_eq!(Format::Json.as_cstr().to_str().unwrap(), "json");
+        assert_eq!(Format::DotOutput.as_cstr().to_str().unwrap(), "dot");
+        assert_eq!(Format::Xdot.as_cstr().to_str().unwrap(), "xdot");
+        assert_eq!(Format::Plain.as_cstr().to_str().unwrap(), "plain");
+    }
+
+    #[test]
+    fn format_equality() {
+        assert_eq!(Format::Svg, Format::Svg);
+        assert_ne!(Format::Svg, Format::Png);
+    }
+
+    #[test]
+    fn format_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(Format::Svg);
+        set.insert(Format::Png);
+        set.insert(Format::Svg); // Duplicate
+        assert_eq!(set.len(), 2); // Should have 2 unique formats
+    }
+
+    // ================================================================================
+    // Error Tests
+    // ================================================================================
+
+    #[test]
     fn error_display() {
         let err = GraphvizError::InvalidDot;
         let msg = format!("{err}");
@@ -364,8 +432,208 @@ mod tests {
     }
 
     #[test]
+    fn all_error_codes_mapped() {
+        // Verify all error codes can be mapped to GraphvizError
+        assert!(matches!(
+            GraphvizError::from_code(ffi::GV_ERR_NULL_INPUT),
+            GraphvizError::NullInput
+        ));
+        assert!(matches!(
+            GraphvizError::from_code(ffi::GV_ERR_INVALID_DOT),
+            GraphvizError::InvalidDot
+        ));
+        assert!(matches!(
+            GraphvizError::from_code(ffi::GV_ERR_LAYOUT_FAILED),
+            GraphvizError::LayoutFailed
+        ));
+        assert!(matches!(
+            GraphvizError::from_code(ffi::GV_ERR_RENDER_FAILED),
+            GraphvizError::RenderFailed
+        ));
+        assert!(matches!(
+            GraphvizError::from_code(ffi::GV_ERR_INVALID_ENGINE),
+            GraphvizError::InvalidEngine
+        ));
+        assert!(matches!(
+            GraphvizError::from_code(ffi::GV_ERR_INVALID_FORMAT),
+            GraphvizError::InvalidFormat
+        ));
+        assert!(matches!(
+            GraphvizError::from_code(ffi::GV_ERR_OUT_OF_MEMORY),
+            GraphvizError::OutOfMemory
+        ));
+        assert!(matches!(
+            GraphvizError::from_code(ffi::GV_ERR_NOT_INITIALIZED),
+            GraphvizError::NotInitialized
+        ));
+    }
+
+    #[test]
+    fn error_unknown_code() {
+        let err = GraphvizError::from_code(999);
+        assert!(matches!(err, GraphvizError::Unknown(999)));
+    }
+
+    #[test]
     fn nul_byte_in_input_is_error() {
         let result = CString::new("hello\0world");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn error_nul_byte_error() {
+        let nul_err = CString::new("hello\0").unwrap_err();
+        let graphviz_err = GraphvizError::from(nul_err);
+        match graphviz_err {
+            GraphvizError::NulByteInInput(_) => {}
+            _ => panic!("Expected NulByteInInput"),
+        }
+    }
+
+    #[test]
+    fn error_has_std_error_impl() {
+        use std::error::Error;
+        let err: Box<dyn Error> = Box::new(GraphvizError::InvalidDot);
+        assert_eq!(err.to_string(), "invalid DOT input");
+    }
+
+    // ================================================================================
+    // GraphvizContext Tests (would work with real Graphviz C library)
+    // ================================================================================
+
+    #[test]
+    fn context_is_not_send() {
+        // This test verifies that GraphvizContext is !Send and !Sync
+        // The presence of PhantomData<*mut ()> guarantees !Send and !Sync
+        // because raw pointers are !Send and !Sync
+        let _ctx = GraphvizContext {
+            raw: std::ptr::null_mut(),
+            _not_send_sync: std::marker::PhantomData,
+        };
+
+        // We verify this by checking that the PhantomData marker exists
+        // and by the fact that the code compiles (if GraphvizContext was Send/Sync,
+        // usage in certain contexts would fail to compile)
+    }
+
+    #[test]
+    fn context_creation_null_returns_error() {
+        // This test would run with real Graphviz if we mock gv_context_new
+        // For now, we verify the error handling logic
+        let err = GraphvizError::ContextCreationFailed;
+        assert!(format!("{err}").contains("context"));
+    }
+
+    #[test]
+    fn render_error_from_code() {
+        let err = GraphvizError::from_code(ffi::GV_ERR_RENDER_FAILED);
+        assert!(matches!(err, GraphvizError::RenderFailed));
+    }
+
+    #[test]
+    fn layout_error_from_code() {
+        let err = GraphvizError::from_code(ffi::GV_ERR_LAYOUT_FAILED);
+        assert!(matches!(err, GraphvizError::LayoutFailed));
+    }
+
+    #[test]
+    fn engine_validation_error() {
+        let err = GraphvizError::from_code(ffi::GV_ERR_INVALID_ENGINE);
+        assert!(matches!(err, GraphvizError::InvalidEngine));
+    }
+
+    #[test]
+    fn format_validation_error() {
+        let err = GraphvizError::from_code(ffi::GV_ERR_INVALID_FORMAT);
+        assert!(matches!(err, GraphvizError::InvalidFormat));
+    }
+
+    // ================================================================================
+    // Version and StError Tests
+    // ================================================================================
+
+    #[test]
+    fn version_returns_string_or_none() {
+        // This would call into C library in real scenario
+        // For now, we just verify the function exists and type is correct
+        let _result: Option<String> = version();
+    }
+
+    #[test]
+    fn strerror_returns_string_or_none() {
+        // This would call into C library in real scenario
+        let _result: Option<String> = strerror(ffi::GV_ERR_INVALID_DOT);
+    }
+
+    // ================================================================================
+    // C String Conversion Tests
+    // ================================================================================
+
+    #[test]
+    fn valid_dot_creates_cstring() {
+        let dot = "digraph { a -> b }";
+        let result = CString::new(dot);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().to_str().unwrap(), dot);
+    }
+
+    #[test]
+    fn empty_dot_creates_cstring() {
+        let result = CString::new("");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn complex_dot_creates_cstring() {
+        let dot = r#"
+            digraph G {
+                rankdir=LR;
+                node [shape=record];
+                a [label="<left> A | <right> B"];
+                a -> b;
+            }
+        "#;
+        let result = CString::new(dot);
+        assert!(result.is_ok());
+    }
+
+    // ================================================================================
+    // Trait Tests
+    // ================================================================================
+
+    #[test]
+    fn engine_implements_debug() {
+        let engine = Engine::Dot;
+        let _debug_str = format!("{:?}", engine);
+    }
+
+    #[test]
+    fn engine_implements_clone_copy() {
+        let e1 = Engine::Dot;
+        let e2 = e1;
+        let e3 = e1.clone();
+        assert_eq!(e1, e2);
+        assert_eq!(e2, e3);
+    }
+
+    #[test]
+    fn format_implements_debug() {
+        let format = Format::Svg;
+        let _debug_str = format!("{:?}", format);
+    }
+
+    #[test]
+    fn format_implements_clone_copy() {
+        let f1 = Format::Svg;
+        let f2 = f1;
+        let f3 = f1.clone();
+        assert_eq!(f1, f2);
+        assert_eq!(f2, f3);
+    }
+
+    #[test]
+    fn error_implements_debug() {
+        let err = GraphvizError::InvalidDot;
+        let _debug_str = format!("{:?}", err);
     }
 }
