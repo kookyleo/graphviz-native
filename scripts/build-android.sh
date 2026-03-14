@@ -67,6 +67,10 @@ mkdir -p "${BUILD_DIR}"
 GV_PATCHED="${BUILD_DIR}/graphviz-src"
 prepare_graphviz_source "${GV_PATCHED}"
 
+# Build expat from source (not available in NDK)
+EXPAT_SRC="${BUILD_DIR}/expat-src"
+download_expat "${EXPAT_SRC}"
+
 build_android_abi() {
     local abi="$1"
     local build_dir="${BUILD_DIR}/${abi}"
@@ -74,6 +78,13 @@ build_android_abi() {
     local install_dir="${INSTALL_DIR}/${abi}"
 
     log_info "Building for Android ${abi}..."
+
+    # Build expat for this ABI
+    local expat_install="${build_dir}/expat-install"
+    build_expat "${EXPAT_SRC}" "${build_dir}/expat-build" "${expat_install}" \
+        -DCMAKE_TOOLCHAIN_FILE="${NDK_TOOLCHAIN}" \
+        -DANDROID_ABI="${abi}" \
+        -DANDROID_NATIVE_API_LEVEL="${ANDROID_API}"
 
     mkdir -p "${build_dir}/graphviz"
     cmake -S "${GV_PATCHED}" -B "${build_dir}/graphviz" \
@@ -83,6 +94,8 @@ build_android_abi() {
         -DANDROID_STL=c++_shared \
         "${GV_CMAKE_COMMON_ARGS[@]}" \
         "-DCMAKE_C_FLAGS=-O2 -fPIC" \
+        -DEXPAT_INCLUDE_DIR="${expat_install}/include" \
+        -DEXPAT_LIBRARY="${expat_install}/lib/libexpat.a" \
         -DCMAKE_INSTALL_PREFIX="${gv_install}"
 
     # No pango on Android
@@ -118,6 +131,9 @@ build_android_abi() {
         -I"${gv_install}/include/graphviz" \
         -o "${build_dir}/graphviz_api.o" \
         "${WRAPPER_SRC}/graphviz_api.c"
+
+    # Include expat static library
+    libs+=("${expat_install}/lib/libexpat.a")
 
     mkdir -p "${install_dir}/lib" "${install_dir}/include"
     "${cc}" -shared "${target_flag}" \

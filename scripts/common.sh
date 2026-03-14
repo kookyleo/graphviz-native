@@ -77,10 +77,68 @@ prepare_graphviz_source() {
     local output_dir="$1"
     if [ ! -d "${output_dir}" ]; then
         log_info "Patching Graphviz source for static build..."
-        cp -a "${GRAPHVIZ_SRC}" "${output_dir}"
+        # Use cp -r with error suppression for Windows symlink compatibility
+        cp -r "${GRAPHVIZ_SRC}" "${output_dir}" 2>/dev/null || true
+        if [ ! -d "${output_dir}/lib" ]; then
+            log_error "Failed to copy Graphviz source"
+            exit 1
+        fi
+        # Patch: force SHARED→STATIC, remove LTDL references (ltdl is disabled)
+        # Use sed -i.bak for BSD/GNU sed compatibility
         find "${output_dir}" -name CMakeLists.txt -exec \
-            sed -i 's/add_library(\([^ ]*\) SHARED/add_library(\1 STATIC/g' {} +
+            sed -i.bak \
+                -e 's/add_library(\([^ ]*\) SHARED/add_library(\1 STATIC/g' \
+                -e 's/\${LTDL_INCLUDE_DIR}//g' \
+                {} +
+        find "${output_dir}" -name "*.bak" -delete
     fi
+}
+
+# Download expat source for cross-compilation targets that lack it.
+# Usage: download_expat <target_dir>
+download_expat() {
+    local target_dir="$1"
+    local version="${EXPAT_VERSION:-2.6.2}"
+    if [ ! -d "${target_dir}" ]; then
+        local url="https://github.com/libexpat/libexpat/releases/download/R_${version//./_}/expat-${version}.tar.gz"
+        log_info "Downloading expat ${version}..."
+        mkdir -p "$(dirname "${target_dir}")"
+        curl -sL "${url}" | tar xz -C "$(dirname "${target_dir}")"
+        mv "$(dirname "${target_dir}")/expat-${version}" "${target_dir}"
+    fi
+}
+
+# Build expat as a static library for cross-compilation.
+# Usage: build_expat <source_dir> <build_dir> <install_dir> [extra_cmake_args...]
+build_expat() {
+    local source_dir="$1"
+    local build_dir="$2"
+    local install_dir="$3"
+    shift 3
+    local cmake_extra_args=("$@")
+
+    if [ -f "${install_dir}/lib/libexpat.a" ] || [ -f "${install_dir}/lib/expat.lib" ]; then
+        return 0
+    fi
+
+    log_info "Building expat..."
+    mkdir -p "${build_dir}"
+    cmake -S "${source_dir}" -B "${build_dir}" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DEXPAT_BUILD_TOOLS=OFF \
+        -DEXPAT_BUILD_EXAMPLES=OFF \
+        -DEXPAT_BUILD_TESTS=OFF \
+        -DEXPAT_BUILD_DOCS=OFF \
+        -DEXPAT_BUILD_FUZZERS=OFF \
+        -DEXPAT_BUILD_PKGCONFIG=OFF \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_INSTALL_PREFIX="${install_dir}" \
+        "${cmake_extra_args[@]}"
+
+    cmake --build "${build_dir}" --config Release \
+        --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+    cmake --install "${build_dir}" --config Release
 }
 
 # Install Graphviz headers from a patched source tree + build directory.

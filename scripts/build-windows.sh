@@ -31,26 +31,33 @@ mkdir -p "${BUILD_DIR}"
 GV_PATCHED="${BUILD_DIR}/graphviz-src"
 prepare_graphviz_source "${GV_PATCHED}"
 
+# Build expat from source (not available on Windows by default)
+EXPAT_SRC="${BUILD_DIR}/expat-src"
+download_expat "${EXPAT_SRC}"
+EXPAT_INSTALL="${BUILD_DIR}/expat-install"
+build_expat "${EXPAT_SRC}" "${BUILD_DIR}/expat-build" "${EXPAT_INSTALL}" \
+    -G "Visual Studio 17 2022" -A x64
+
 # Configure Graphviz
 log_info "Configuring Graphviz..."
 mkdir -p "${BUILD_DIR}/graphviz"
 cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
-    -G "Visual Studio 16 2019" -A x64 \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-    -DBUILD_SHARED_LIBS=OFF \
-    -Denable_ltdl=OFF \
-    -Dwith_smyrna=OFF \
-    -Dwith_digcola=ON \
-    -Dwith_ortho=ON \
-    -Dwith_sfdp=ON \
+    -G "Visual Studio 17 2022" -A x64 \
+    "${GV_CMAKE_COMMON_ARGS[@]}" \
+    -DEXPAT_INCLUDE_DIR="${EXPAT_INSTALL}/include" \
+    -DEXPAT_LIBRARY="${EXPAT_INSTALL}/lib/expat.lib" \
     -DCMAKE_INSTALL_PREFIX="${BUILD_DIR}/graphviz-install"
 
-log_info "Building Graphviz..."
-cmake --build "${BUILD_DIR}/graphviz" --config Release --parallel
+log_info "Building Graphviz library targets..."
+cmake --build "${BUILD_DIR}/graphviz" --config Release --parallel \
+    --target "${GV_LIB_TARGETS[@]}" 2>&1 || true
 
 GV_INSTALL="${BUILD_DIR}/graphviz-install"
 install_graphviz_headers "${GV_PATCHED}" "${BUILD_DIR}/graphviz" "${GV_INSTALL}"
+
+# Copy expat lib so wrapper cmake can find it
+mkdir -p "${GV_INSTALL}/lib"
+cp "${EXPAT_INSTALL}/lib/expat.lib" "${GV_INSTALL}/lib/" 2>/dev/null || true
 
 # Build wrapper DLL
 log_info "Building graphviz_api wrapper..."
@@ -60,7 +67,8 @@ cat > "${BUILD_DIR}/wrapper/CMakeLists.txt" << 'CMAKE_EOF'
 cmake_minimum_required(VERSION 3.16)
 project(graphviz_api C)
 
-file(GLOB GV_STATIC_LIBS "${GV_BUILD_DIR}/**/*.lib" "${GV_BUILD_DIR}/**/**/*.lib")
+file(GLOB_RECURSE GV_STATIC_LIBS "${GV_BUILD_DIR}/*.lib")
+list(FILTER GV_STATIC_LIBS EXCLUDE REGEX "CMakeFiles")
 file(GLOB GV_INSTALL_LIBS "${GV_INSTALL_DIR}/lib/*.lib")
 list(APPEND GV_ALL_LIBS ${GV_STATIC_LIBS} ${GV_INSTALL_LIBS})
 
@@ -86,7 +94,7 @@ install(TARGETS graphviz_api
 CMAKE_EOF
 
 cmake -S "${BUILD_DIR}/wrapper" -B "${BUILD_DIR}/wrapper/build" \
-    -G "Visual Studio 16 2019" -A x64 \
+    -G "Visual Studio 17 2022" -A x64 \
     -DSRC_DIR="${WRAPPER_SRC}" \
     -DGV_BUILD_DIR="${BUILD_DIR}/graphviz" \
     -DGV_INSTALL_DIR="${GV_INSTALL}" \
