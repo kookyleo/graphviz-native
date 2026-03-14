@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+#
+# Build Graphviz shared library for macOS (universal binary: arm64 + x86_64)
+#
+# Usage:
+#   ./scripts/build-macos.sh [--arch arm64|x86_64|universal]
+#
+# Environment variables:
+#   BUILD_DIR   - Build directory (default: build/macos-<arch>)
+#   INSTALL_DIR - Install prefix (default: output/macos-<arch>)
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=common.sh
+source "${SCRIPT_DIR}/common.sh"
+
+ARCH="${ARCH:-universal}"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --arch) ARCH="$2"; shift 2 ;;
+        *) log_error "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+BUILD_DIR="${BUILD_DIR:-${PROJECT_ROOT}/build/macos-${ARCH}}"
+INSTALL_DIR="${INSTALL_DIR:-${PROJECT_ROOT}/output/macos-${ARCH}}"
+
+log_info "Building Graphviz for macOS ${ARCH}"
+
+check_build_deps
+
+# Prepare patched source
+mkdir -p "${BUILD_DIR}"
+GV_PATCHED="${BUILD_DIR}/graphviz-src"
+prepare_graphviz_source "${GV_PATCHED}"
+
+build_single_arch() {
+    local arch="$1"
+    local build_dir="${BUILD_DIR}/${arch}"
+    local gv_install="${build_dir}/graphviz-install"
+
+    log_info "Building for macOS ${arch}..."
+    mkdir -p "${build_dir}/graphviz"
+
+    cmake -S "${GV_PATCHED}" -B "${build_dir}/graphviz" \
+        "${GV_CMAKE_COMMON_ARGS[@]}" \
+        "-DCMAKE_C_FLAGS=-O2 -fPIC" \
+        -DCMAKE_OSX_ARCHITECTURES="${arch}" \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15" \
+        -DCMAKE_INSTALL_PREFIX="${gv_install}"
+
+    cmake --build "${build_dir}/graphviz" --parallel "$(sysctl -n hw.ncpu)" \
+        --target "${GV_LIB_TARGETS[@]}" 2>&1 || true
+
+    install_graphviz_headers "${GV_PATCHED}" "${build_dir}/graphviz" "${gv_install}"
+
+    # Collect static libs and build unified dylib
+    local libs=()
+    while IFS= read -r lib; do
+        libs+=("$lib")
+    done < <(collect_static_libs "${build_dir}/graphviz" "${gv_install}")
+
+    clang -c -fPIC -O2 \
+        -arch "${arch}" \
+        -mmacosx-version-min=10.15 \
+        -DPACKAGE_VERSION="\"${GRAPHVIZ_VERSION}\"" \
+        -I"${gv_install}/include" \
+        -I"${gv_install}/include/graphviz" \
+        -o "${build_dir}/graphviz_api.o" \
+        "${WRAPPER_SRC}/graphviz_api.c"
+
+    mkdir -p "${build_dir}/out"
+    clang -shared -arch "${arch}" -mmacosx-version-min=10.15 \
+        -install_name "@rpath/libgraphviz_api.dylib" \
+        -o "${build_dir}/out/libgraphviz_api.dylib" \
+        "${build_dir}/graphviz_api.o" \
+        -Wl,-all_load \
+        "${libs[@]}" \
+        -lm -lz -lexpat
+}
+
+if [ "$ARCH" = "universal" ]; then
+    build_single_arch "arm64"
+    build_single_arch "x86_64"
+
+    log_info "Creating universal binary..."
+    mkdir -p "${INSTALL_DIR}/lib" "${INSTALL_DIR}/include"
+    lipo -create \
+        "${BUILD_DIR}/arm64/out/libgraphviz_api.dylib" \
+        "${BUILD_DIR}/x86_64/out/libgraphviz_api.dylib" \
+        -output "${INSTALL_DIR}/lib/libgraphviz_api.dylib"
+    cp "${WRAPPER_SRC}/graphviz_api.h" "${INSTALL_DIR}/include/"
+else
+    build_single_arch "$ARCH"
+    mkdir -p "${INSTALL_DIR}/lib" "${INSTALL_DIR}/include"
+    cp "${BUILD_DIR}/${ARCH}/out/libgraphviz_api.dylib" "${INSTALL_DIR}/lib/"
+    cp "${WRAPPER_SRC}/graphviz_api.h" "${INSTALL_DIR}/include/"
+fi
+
+log_info "Verifying outputs..."
+verify_output "${INSTALL_DIR}/lib/libgraphviz_api.dylib" "Unified shared library"
+verify_output "${INSTALL_DIR}/include/graphviz_api.h" "Wrapper header"
+
+log_info "macOS ${ARCH} build complete: ${INSTALL_DIR}"

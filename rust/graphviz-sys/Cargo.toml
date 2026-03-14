@@ -1,0 +1,12 @@
+[package]
+name = "graphviz-native-sys"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.64"
+description = "Raw FFI bindings to the graphviz-native C ABI wrapper"
+license = "Apache-2.0"
+authors = ["kookyleo <kookyleo@gmail.com>"]
+links = "graphviz_api"
+
+[build-dependencies]
+pkg-config = "0.3"

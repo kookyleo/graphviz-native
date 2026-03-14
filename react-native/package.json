@@ -1,0 +1,88 @@
+{
+  "name": "react-native-graphviz",
+  "version": "0.1.0",
+  "description": "React Native native module wrapping Graphviz C library for cross-platform DOT rendering",
+  "main": "lib/commonjs/index.js",
+  "module": "lib/module/index.js",
+  "types": "lib/typescript/index.d.ts",
+  "source": "src/index.ts",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicekook/graphviz-native.git",
+    "directory": "react-native"
+  },
+  "author": "kookyleo <kookyleo@gmail.com>",
+  "files": [
+    "src",
+    "lib",
+    "ios",
+    "android",
+    "macos",
+    "windows",
+    "react-native-graphviz.podspec",
+    "!**/__tests__"
+  ],
+  "scripts": {
+    "typescript": "tsc --noEmit",
+    "build": "bob build",
+    "prepare": "bob build",
+    "lint": "eslint \"src/**/*.{ts,tsx}\""
+  },
+  "keywords": [
+    "react-native",
+    "graphviz",
+    "dot",
+    "graph",
+    "visualization",
+    "svg",
+    "ios",
+    "android",
+    "macos",
+    "windows"
+  ],
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-native": ">=0.71.0",
+    "react-native-macos": ">=0.71.0",
+    "react-native-windows": ">=0.71.0"
+  },
+  "peerDependenciesMeta": {
+    "react-native-macos": {
+      "optional": true
+    },
+    "react-native-windows": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-native": "^0.73.0",
+    "react": "19.2.3",
+    "react-native": "0.84.1",
+    "react-native-builder-bob": "^0.35.0",
+    "typescript": "^5.7.0"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      "commonjs",
+      "module",
+      [
+        "typescript",
+        {
+          "project": "tsconfig.json"
+        }
+      ]
+    ]
+  },
+  "codegenConfig": {
+    "name": "GraphvizNativeSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.graphviznative"
+    }
+  }
+}

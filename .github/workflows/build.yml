@@ -1,0 +1,179 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential bison flex \
+            pkg-config libexpat1-dev zlib1g-dev \
+            libpango1.0-dev libharfbuzz-dev
+
+      - name: Build
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/build-linux.sh --arch ${{ matrix.arch }}
+
+      - name: Package
+        run: |
+          cd output/linux-${{ matrix.arch }}
+          tar czf "${GITHUB_WORKSPACE}/graphviz-native-linux-${{ matrix.arch }}.tar.gz" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: graphviz-native-linux-${{ matrix.arch }}.tar.gz
+
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: brew install bison flex pkg-config
+
+      - name: Build universal binary
+        run: |
+          export PATH="$(brew --prefix bison)/bin:$(brew --prefix flex)/bin:$PATH"
+          chmod +x scripts/*.sh
+          ./scripts/build-macos.sh --arch universal
+
+      - name: Package
+        run: |
+          cd output/macos-universal
+          tar czf "${GITHUB_WORKSPACE}/graphviz-native-macos-universal.tar.gz" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: graphviz-native-macos-universal.tar.gz
+
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: brew install bison flex pkg-config
+
+      - name: Build iOS
+        run: |
+          export PATH="$(brew --prefix bison)/bin:$(brew --prefix flex)/bin:$PATH"
+          chmod +x scripts/*.sh
+          ./scripts/build-ios.sh
+
+      - name: Package
+        run: |
+          cd output/ios
+          tar czf "${GITHUB_WORKSPACE}/graphviz-native-ios.tar.gz" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: graphviz-native-ios.tar.gz
+
+  build-android:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential bison flex pkg-config
+
+      - name: Setup NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ndk;25.2.9519653
+
+      - name: Build
+        run: |
+          export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/25.2.9519653"
+          chmod +x scripts/*.sh
+          ./scripts/build-android.sh --abi ${{ matrix.abi }}
+
+      - name: Package
+        run: |
+          cd output/android/${{ matrix.abi }}
+          tar czf "${GITHUB_WORKSPACE}/graphviz-native-android-${{ matrix.abi }}.tar.gz" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.abi }}
+          path: graphviz-native-android-${{ matrix.abi }}.tar.gz
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          choco install winflexbison3 -y
+          choco install pkgconfiglite -y
+
+      - name: Build
+        shell: bash
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/build-windows.sh
+
+      - name: Package
+        shell: bash
+        run: |
+          cd output/windows-x86_64
+          7z a "${GITHUB_WORKSPACE}/graphviz-native-windows-x86_64.zip" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: graphviz-native-windows-x86_64.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-macos, build-ios, build-android, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip

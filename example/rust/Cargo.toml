@@ -1,0 +1,11 @@
+[package]
+name = "graphviz-native-example"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.64"
+license = "Apache-2.0"
+authors = ["kookyleo <kookyleo@gmail.com>"]
+publish = false
+
+[dependencies]
+graphviz-native = { path = "../../rust/graphviz" }
