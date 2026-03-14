@@ -1,0 +1,8 @@
+[INFO] Building Graphviz for WebAssembly
+[INFO] Build directory: /Users/leo/Workspace/graphviz-native/build/wasm
+[INFO] Install directory: /Users/leo/Workspace/graphviz-native/output/wasm
+[INFO] Using Emscripten: emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 4.0.20-git
+[INFO] Configuring Graphviz for Wasm...
+emcmake: cmake -S /Users/leo/Workspace/graphviz-native/build/wasm/graphviz-src -B /Users/leo/Workspace/graphviz-native/build/wasm/graphviz -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DBUILD_SHARED_LIBS=OFF -Denable_ltdl=OFF -Dwith_smyrna=OFF -Dwith_digcola=ON -Dwith_ortho=ON -Dwith_sfdp=ON -DCMAKE_C_FLAGS=-O2 -DCMAKE_CXX_FLAGS=-O2 -DCMAKE_INSTALL_PREFIX=/Users/leo/Workspace/graphviz-native/build/wasm/graphviz-install -DWITH_CGRAPH=ON -DWITH_GRAPH=ON -DCMAKE_TOOLCHAIN_FILE=/opt/homebrew/Cellar/emscripten/4.0.20/libexec/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_CROSSCOMPILING_EMULATOR=/opt/homebrew/opt/node/bin/node in directory /Users/leo/XData/Workspace/graphviz-native
+CMake Error: The source directory "/Users/leo/Workspace/graphviz-native/build/wasm/graphviz-src" does not appear to contain CMakeLists.txt.
+Specify --help for usage, or press the help button on the CMake GUI.

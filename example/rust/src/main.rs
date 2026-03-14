@@ -1,8 +1,8 @@
-use graphviz_native::{Engine, Format, GraphvizContext};
+use graphviz_anywhere::{Engine, Format, GraphvizContext};
 
 fn main() {
     // Print the library version if available.
-    if let Some(ver) = graphviz_native::version() {
+    if let Some(ver) = graphviz_anywhere::version() {
         println!("Graphviz version: {ver}");
     }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Common build utilities for graphviz-native
+# Common build utilities for graphviz-anywhere
 # Sourced by per-platform build scripts.
 #
 # shellcheck disable=SC2034  # Variables are used by sourcing scripts

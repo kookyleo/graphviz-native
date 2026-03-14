@@ -1,5 +1,5 @@
 /*
- * Metro configuration for the Graphviz Native example app.
+ * Metro configuration for the Graphviz Anywhere example app.
  *
  * Configures Metro to resolve the local react-native-graphviz package
  * from the parent directory so changes are picked up without publishing.

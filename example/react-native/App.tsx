@@ -77,7 +77,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Graphviz Native Example</Text>
+        <Text style={styles.title}>Graphviz Anywhere Example</Text>
         {version ? (
           <Text style={styles.version}>Graphviz v{version}</Text>
         ) : null}

@@ -1,5 +1,5 @@
 [package]
-name = "graphviz-native-example"
+name = "graphviz-anywhere-example"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.64"
@@ -8,4 +8,4 @@ authors = ["kookyleo <kookyleo@gmail.com>"]
 publish = false
 
 [dependencies]
-graphviz-native = { path = "../../rust/graphviz" }
+graphviz-anywhere = { path = "../../rust/graphviz" }
