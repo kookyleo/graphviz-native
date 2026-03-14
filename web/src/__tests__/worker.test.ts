@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   GraphvizWebError,
+  type GraphvizWebErrorCode,
   type GraphvizWorkerRequest,
   type GraphvizWorkerResponse,
 } from '../shared';
@@ -171,7 +172,7 @@ describe('Worker Protocol', () => {
     });
 
     it('supports all error codes', () => {
-      const codes: Array<Parameters<typeof GraphvizWebError>[0]> = [
+      const codes: GraphvizWebErrorCode[] = [
         'UNSUPPORTED_ENGINE',
         'UNSUPPORTED_FORMAT',
         'RENDER_FAILED',

@@ -2,8 +2,11 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    // Strategy 1: GRAPHVIZ_NATIVE_DIR environment variable (highest priority)
-    if let Ok(dir) = env::var("GRAPHVIZ_NATIVE_DIR") {
+    // Strategy 1: GRAPHVIZ_ANYWHERE_DIR / GRAPHVIZ_NATIVE_DIR environment variable.
+    if let Some(dir) = ["GRAPHVIZ_ANYWHERE_DIR", "GRAPHVIZ_NATIVE_DIR"]
+        .iter()
+        .find_map(|name| env::var(name).ok())
+    {
         let base = PathBuf::from(&dir);
 
         // Look for the library in common subdirectories
@@ -23,15 +26,19 @@ fn main() {
         }
 
         println!("cargo:rustc-link-lib=dylib=graphviz_api");
+        println!("cargo:rerun-if-env-changed=GRAPHVIZ_ANYWHERE_DIR");
         println!("cargo:rerun-if-env-changed=GRAPHVIZ_NATIVE_DIR");
         return;
     }
 
     // Strategy 2: pkg-config
-    if pkg_config::probe_library("graphviz-native").is_ok() {
-        // pkg-config sets the necessary link flags automatically
-        println!("cargo:rerun-if-env-changed=GRAPHVIZ_NATIVE_DIR");
-        return;
+    for library in ["graphviz-anywhere", "graphviz-native"] {
+        if pkg_config::probe_library(library).is_ok() {
+            // pkg-config sets the necessary link flags automatically
+            println!("cargo:rerun-if-env-changed=GRAPHVIZ_ANYWHERE_DIR");
+            println!("cargo:rerun-if-env-changed=GRAPHVIZ_NATIVE_DIR");
+            return;
+        }
     }
 
     // Strategy 3: system default paths
@@ -52,5 +59,6 @@ fn main() {
     }
 
     println!("cargo:rustc-link-lib=dylib=graphviz_api");
+    println!("cargo:rerun-if-env-changed=GRAPHVIZ_ANYWHERE_DIR");
     println!("cargo:rerun-if-env-changed=GRAPHVIZ_NATIVE_DIR");
 }

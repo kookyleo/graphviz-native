@@ -1,5 +1,5 @@
 /*
- * graphviz-native C ABI wrapper
+ * graphviz-anywhere C ABI wrapper
  *
  * Provides a simplified, stable C interface to Graphviz core functionality.
  * Designed for easy FFI consumption from Rust, React Native, and other languages.
@@ -89,6 +89,38 @@ GV_API const char *gv_strerror(gv_error_t err);
  * Get the Graphviz library version string.
  */
 GV_API const char *gv_version(void);
+
+/*
+ * Get the list of available layout engines as a JSON array string.
+ * Returns a pointer to a static string (must not be freed).
+ */
+GV_API const char *gv_get_engines(void);
+
+/*
+ * Get the list of available output formats as a JSON array string.
+ * Returns a pointer to a static string (must not be freed).
+ */
+GV_API const char *gv_get_formats(void);
+
+/*
+ * Render a DOT string to multiple formats in a single call.
+ *
+ * Parameters:
+ *   ctx        - Graphviz context (created with gv_context_new)
+ *   dot        - DOT language input string (null-terminated)
+ *   engine     - Layout engine name
+ *   formats    - JSON array of format strings (e.g., '["svg","png","pdf"]')
+ *   out_data   - Pointer to receive JSON object with format->output mapping
+ *   out_length - Pointer to receive the output data length in bytes
+ *
+ * Returns GV_OK on success, or a negative error code.
+ */
+GV_API gv_error_t gv_render_formats(gv_context_t *ctx,
+                                     const char *dot,
+                                     const char *engine,
+                                     const char *formats,
+                                     char **out_data,
+                                     size_t *out_length);
 
 #ifdef __cplusplus
 }
