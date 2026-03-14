@@ -101,7 +101,7 @@ build_android_abi() {
     # No pango on Android
     cmake --build "${build_dir}/graphviz" \
         --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)" \
-        --target "${GV_LIB_TARGETS[@]}" 2>&1 || true
+        --target "${GV_LIB_TARGETS[@]}"
 
     install_graphviz_headers "${GV_PATCHED}" "${build_dir}/graphviz" "${gv_install}"
 

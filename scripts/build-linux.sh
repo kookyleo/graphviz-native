@@ -72,7 +72,7 @@ if pkg-config --exists pangocairo 2>/dev/null; then
     GV_TARGETS+=("gvplugin_pango")
 fi
 cmake --build "${BUILD_DIR}/graphviz" --parallel "$(nproc)" \
-    --target "${GV_TARGETS[@]}" 2>&1 || true
+    --target "${GV_TARGETS[@]}"
 
 GV_INSTALL="${BUILD_DIR}/graphviz-install"
 install_graphviz_headers "${GV_PATCHED}" "${BUILD_DIR}/graphviz" "${GV_INSTALL}"

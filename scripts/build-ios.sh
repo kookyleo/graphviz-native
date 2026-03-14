@@ -3,7 +3,7 @@
 # Build Graphviz.xcframework for iOS
 #
 # Produces a unified static XCFramework containing all Graphviz functionality
-# for arm64 (device) and x86_64+arm64 (simulator).
+# for arm64 (device) and arm64 (simulator).
 #
 # Usage:
 #   ./scripts/build-ios.sh
@@ -67,7 +67,7 @@ build_ios_arch() {
 
     # Build only library targets (skip pango — not available on iOS)
     cmake --build "${build_dir}/graphviz" --parallel "$(sysctl -n hw.ncpu)" \
-        --target "${GV_LIB_TARGETS[@]}" 2>&1 || true
+        --target "${GV_LIB_TARGETS[@]}"
 
     install_graphviz_headers "${GV_PATCHED}" "${build_dir}/graphviz" "${gv_install}"
 
@@ -105,21 +105,15 @@ build_ios_arch() {
     rm -rf "${tmpdir}"
 }
 
-# Build for device and simulator
+# Build for device and simulator (arm64 only — Intel Macs are EOL)
 build_ios_arch "arm64" "iphoneos"
-build_ios_arch "x86_64" "iphonesimulator"
 build_ios_arch "arm64" "iphonesimulator"
 
-# Create fat simulator library (x86_64 + arm64)
-log_info "Creating fat simulator library..."
-mkdir -p "${BUILD_DIR}/sim-fat"
-lipo -create \
-    "${BUILD_DIR}/iphonesimulator-x86_64/out/libGraphviz.a" \
-    "${BUILD_DIR}/iphonesimulator-arm64/out/libGraphviz.a" \
-    -output "${BUILD_DIR}/sim-fat/libGraphviz.a"
-
-# Headers for XCFramework
-HEADER_DIR="${BUILD_DIR}/iphoneos-arm64/graphviz-install/include"
+# Public headers only (not the 200+ internal graphviz headers)
+HEADER_DIR="${BUILD_DIR}/public-headers"
+rm -rf "${HEADER_DIR}"
+mkdir -p "${HEADER_DIR}"
+cp "${WRAPPER_SRC}/graphviz_api.h" "${HEADER_DIR}/"
 
 # Create XCFramework
 log_info "Creating XCFramework..."
@@ -128,11 +122,8 @@ mkdir -p "${INSTALL_DIR}"
 
 xcodebuild -create-xcframework \
     -library "${BUILD_DIR}/iphoneos-arm64/out/libGraphviz.a" -headers "${HEADER_DIR}" \
-    -library "${BUILD_DIR}/sim-fat/libGraphviz.a" -headers "${HEADER_DIR}" \
+    -library "${BUILD_DIR}/iphonesimulator-arm64/out/libGraphviz.a" -headers "${HEADER_DIR}" \
     -output "${INSTALL_DIR}/Graphviz.xcframework"
-
-# Also install standalone header
-cp "${WRAPPER_SRC}/graphviz_api.h" "${INSTALL_DIR}/"
 
 log_info "Verifying outputs..."
 verify_output "${INSTALL_DIR}/Graphviz.xcframework/Info.plist" "XCFramework"

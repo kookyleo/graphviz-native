@@ -53,7 +53,7 @@ build_single_arch() {
         -DCMAKE_INSTALL_PREFIX="${gv_install}"
 
     cmake --build "${build_dir}/graphviz" --parallel "$(sysctl -n hw.ncpu)" \
-        --target "${GV_LIB_TARGETS[@]}" 2>&1 || true
+        --target "${GV_LIB_TARGETS[@]}"
 
     install_graphviz_headers "${GV_PATCHED}" "${build_dir}/graphviz" "${gv_install}"
 

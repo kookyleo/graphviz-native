@@ -50,7 +50,7 @@ cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
 
 log_info "Building Graphviz library targets..."
 cmake --build "${BUILD_DIR}/graphviz" --config Release --parallel \
-    --target "${GV_LIB_TARGETS[@]}" 2>&1 || true
+    --target "${GV_LIB_TARGETS[@]}"
 
 GV_INSTALL="${BUILD_DIR}/graphviz-install"
 install_graphviz_headers "${GV_PATCHED}" "${BUILD_DIR}/graphviz" "${GV_INSTALL}"
