@@ -1,5 +1,5 @@
 {
-  "name": "react-native-graphviz",
+  "name": "graphviz-anywhere-react-native",
   "version": "0.1.0",
   "description": "React Native package in the graphviz-anywhere family for cross-platform DOT rendering",
   "main": "lib/commonjs/index.js",
@@ -20,7 +20,7 @@
     "android",
     "macos",
     "windows",
-    "react-native-graphviz.podspec",
+    "graphviz-anywhere-react-native.podspec",
     "!**/__tests__"
   ],
   "scripts": {
@@ -80,7 +80,7 @@
     ]
   },
   "codegenConfig": {
-    "name": "GraphvizNativeSpec",
+    "name": "GraphvizAnywhereNativeSpec",
     "type": "modules",
     "jsSrcsDir": "src",
     "android": {
