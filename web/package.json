@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nicekook/graphviz-native.git",
+    "url": "https://github.com/nicekook/graphviz-anywhere.git",
     "directory": "web"
   },
   "author": "kookyleo <kookyleo@gmail.com>",
