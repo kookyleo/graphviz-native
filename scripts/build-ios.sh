@@ -47,7 +47,13 @@ build_ios_arch() {
     local build_dir="${BUILD_DIR}/${sdk}-${arch}"
     local gv_install="${build_dir}/graphviz-install"
 
-    log_info "Building for iOS ${sdk} ${arch}..."
+    # Use target triple to ensure correct platform tagging (device vs simulator)
+    local target_triple="${arch}-apple-ios${IOS_MIN_VERSION}"
+    if [[ "$sdk" == "iphonesimulator" ]]; then
+        target_triple="${arch}-apple-ios${IOS_MIN_VERSION}-simulator"
+    fi
+
+    log_info "Building for iOS ${sdk} ${arch} (target: ${target_triple})..."
 
     mkdir -p "${build_dir}/graphviz"
     cmake -S "${GV_PATCHED}" -B "${build_dir}/graphviz" \
@@ -56,7 +62,7 @@ build_ios_arch() {
         -DCMAKE_OSX_SYSROOT="${sdk_path}" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="${IOS_MIN_VERSION}" \
         "${GV_CMAKE_COMMON_ARGS[@]}" \
-        "-DCMAKE_C_FLAGS=-arch ${arch} -isysroot ${sdk_path} -miphoneos-version-min=${IOS_MIN_VERSION} -O2 -fPIC -Wno-incompatible-function-pointer-types" \
+        "-DCMAKE_C_FLAGS=-target ${target_triple} -O2 -fPIC -Wno-incompatible-function-pointer-types" \
         -DCMAKE_INSTALL_PREFIX="${gv_install}"
 
     # Build only library targets (skip pango — not available on iOS)
@@ -67,9 +73,8 @@ build_ios_arch() {
 
     # Compile wrapper
     xcrun -sdk "${sdk}" clang -c -O2 \
-        -arch "${arch}" \
+        -target "${target_triple}" \
         -isysroot "${sdk_path}" \
-        -miphoneos-version-min="${IOS_MIN_VERSION}" \
         -DPACKAGE_VERSION="\"${GRAPHVIZ_VERSION}\"" \
         -I"${gv_install}/include" \
         -I"${gv_install}/include/graphviz" \
