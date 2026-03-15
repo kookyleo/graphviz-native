@@ -261,6 +261,13 @@ jobs:
           cp -r artifacts/wasm-dist/* packages/core-js/dist/ 2>/dev/null || true
           ls -la packages/core-js/dist/ || echo "⚠️  Warning: wasm-dist may not be available"
 
+      - name: Symlink wasm files for TypeScript compilation
+        run: |
+          mkdir -p output/wasm
+          ln -sf ../../packages/core-js/dist/viz.js output/wasm/viz.js || true
+          ln -sf ../../packages/core-js/dist/viz.wasm output/wasm/viz.wasm || true
+          ln -sf ../../packages/core-js/dist/viz.d.ts output/wasm/viz.d.ts || true
+
       - name: Install dependencies
         run: npm install
 
