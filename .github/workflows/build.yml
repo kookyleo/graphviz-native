@@ -229,7 +229,7 @@ jobs:
 
   publish-npm-cargo:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-linux, build-macos, build-ios, build-android, build-windows, build-wasm]
+    needs: [build-wasm]
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
