@@ -111,11 +111,9 @@ log_info "Linking WebAssembly module..."
 mkdir -p "${INSTALL_DIR}"
 
 # Emscripten linking with proper exports and module setup
-# Disable wasm optimization (-s WASM_OPT_LEVEL=0) to avoid validation errors
-# with complex wasm modules. Can be re-enabled with production builds.
-emcc -O2 \
+# Use -O0 instead of -O2 to avoid complex optimizations that may cause issues
+emcc -O0 \
     -s WASM=1 \
-    -s WASM_OPT_LEVEL=0 \
     -s EXPORTED_FUNCTIONS='["_gv_context_new","_gv_context_free","_gv_render","_gv_render_formats","_gv_free_render_data","_gv_strerror","_gv_version","_gv_get_engines","_gv_get_formats"]' \
     -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","lengthBytesUTF8","allocate","ALLOC_NORMAL"]' \
     -s ALLOW_MEMORY_GROWTH=1 \
