@@ -233,6 +233,9 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          sparse-checkout: ''
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
