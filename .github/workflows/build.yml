@@ -216,12 +216,12 @@ jobs:
           chmod +x scripts/*.sh
           ./scripts/build-wasm.sh
 
-      - name: Copy to packages/core-js/dist
+      - name: Copy to web/dist
         run: |
-          mkdir -p packages/core-js/dist
-          cp output/wasm/*.wasm packages/core-js/dist/ || true
-          cp output/wasm/*.js packages/core-js/dist/ || true
-          cp output/wasm/*.d.ts packages/core-js/dist/ || true
+          mkdir -p web/dist
+          cp output/wasm/*.wasm web/dist/ || true
+          cp output/wasm/*.js web/dist/ || true
+          cp output/wasm/*.d.ts web/dist/ || true
 
       - name: Package
         run: |
@@ -265,13 +265,13 @@ jobs:
       - name: Restore prebuilt libraries
         run: |
           mkdir -p packages/core-rust/prebuilt/{macos,linux,windows}
-          mkdir -p packages/core-js/dist
+          mkdir -p web/dist
           # 尽力复制，但不要因为缺失文件而失败
           cp -r artifacts/prebuilt-macos/* packages/core-rust/prebuilt/macos/ 2>/dev/null || true
           cp -r artifacts/prebuilt-linux/* packages/core-rust/prebuilt/linux/ 2>/dev/null || true
           cp -r artifacts/prebuilt-windows/* packages/core-rust/prebuilt/windows/ 2>/dev/null || true
-          cp -r artifacts/wasm-dist/* packages/core-js/dist/ 2>/dev/null || true
-          ls -la packages/core-js/dist/ || echo "⚠️  Warning: wasm-dist may not be available"
+          cp -r artifacts/wasm-dist/* web/dist/ 2>/dev/null || true
+          ls -la web/dist/ || echo "⚠️  Warning: wasm-dist may not be available"
 
       - name: Symlink wasm files for TypeScript compilation
         run: |
