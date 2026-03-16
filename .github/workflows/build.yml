@@ -236,7 +236,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: wasm-dist
-          path: packages/core-js/dist/
+          path: web/dist/
 
   publish-npm-cargo:
     if: startsWith(github.ref, 'refs/tags/')
@@ -276,9 +276,9 @@ jobs:
       - name: Symlink wasm files for TypeScript compilation
         run: |
           mkdir -p output/wasm
-          ln -sf ../../packages/core-js/dist/viz.js output/wasm/viz.js || true
-          ln -sf ../../packages/core-js/dist/viz.wasm output/wasm/viz.wasm || true
-          ln -sf ../../packages/core-js/dist/viz.d.ts output/wasm/viz.d.ts || true
+          ln -sf ../../web/dist/viz.js output/wasm/viz.js || true
+          ln -sf ../../web/dist/viz.wasm output/wasm/viz.wasm || true
+          ln -sf ../../web/dist/viz.d.ts output/wasm/viz.d.ts || true
 
       - name: Install dependencies
         run: npm install
