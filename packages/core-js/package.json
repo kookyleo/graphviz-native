@@ -1,7 +1,7 @@
 {
-  "name": "@graphviz-anywhere/core",
+  "name": "@kookyleo/graphviz-anywhere-types",
   "version": "0.1.0",
-  "description": "Core TypeScript types and shared definitions for graphviz-anywhere",
+  "description": "TypeScript type definitions for graphviz-anywhere",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {

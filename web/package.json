@@ -1,5 +1,5 @@
 {
-  "name": "graphviz-anywhere-web",
+  "name": "@kookyleo/graphviz-anywhere-web",
   "version": "0.1.0",
   "description": "Wasm-powered Graphviz renderer for browsers, Web Workers, and edge runtimes",
   "type": "module",
@@ -7,7 +7,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/nicekook/graphviz-anywhere.git",
-    "directory": "packages/js/web"
+    "directory": "web"
   },
   "author": "kookyleo <kookyleo@gmail.com>",
   "main": "dist/index.js",
@@ -38,7 +38,7 @@
     "fmt": "prettier --write src"
   },
   "dependencies": {
-    "@graphviz-anywhere/core": "^0.1.0"
+    "@kookyleo/graphviz-anywhere-types": "^0.1.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
