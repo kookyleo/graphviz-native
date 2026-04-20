@@ -46,8 +46,10 @@ function mockEmbindModule(
     }
   );
 
+  // The exact Embind module shape is internal; consumers of mockEmbindModule
+  // pass the returned object straight into Graphviz.load({ factory }).
   return {
-    module: module as unknown as Parameters<typeof Graphviz.load>[0] extends infer _ ? any : never,
+    module: module as unknown,
     stats: () => ({ instances, deletes }),
   };
 }
