@@ -48,11 +48,32 @@ check_build_deps() {
 # Common CMake options for Graphviz:
 # - Disable GUI/editor features and plugin loading
 # - Enable core layout engines
+#
+# Graphviz 14.x renamed the CMake flag family to UPPERCASE and defaults
+# `WITH_EXPAT`/`WITH_ZLIB` to AUTO (ON if detected). We explicitly force
+# them OFF because our native wrapper doesn't link expat/zlib and we want
+# behavior identical to the Graphviz 12.x era. The old lowercase vars are
+# kept for belt-and-braces compat with older CMakeLists that still read them.
+#
 # Usage: cmake "${GV_CMAKE_COMMON_ARGS[@]}" ...
 GV_CMAKE_COMMON_ARGS=(
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     -DBUILD_SHARED_LIBS=OFF
+    # CMake's IPO/LTO test emits a host-tagged libfoo.a we'd accidentally
+    # sweep into the final link on cross-compile targets (notably Android).
+    # Disable it globally; we don't need LTO for the static libs.
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+    # 14.x UPPERCASE flag family — these are the authoritative names.
+    -DWITH_EXPAT=OFF
+    -DWITH_ZLIB=OFF
+    -DWITH_GVEDIT=OFF
+    -DWITH_SMYRNA=OFF
+    -DENABLE_LTDL=OFF
+    -DENABLE_TCL=OFF
+    -DENABLE_SWIG=OFF
+    -DGRAPHVIZ_CLI=OFF
+    # Legacy lowercase names, still read by some CMakeLists.
     -Denable_ltdl=OFF
     -Dwith_smyrna=OFF
     -Dwith_digcola=ON
@@ -85,6 +106,13 @@ prepare_graphviz_source() {
             log_error "Failed to copy Graphviz source"
             exit 1
         fi
+        # Graphviz 14.x ships a handful of source files containing non-UTF8
+        # bytes (e.g. translated strings, author names). BSD sed on macOS
+        # aborts with "RE error: illegal byte sequence" unless we pin the
+        # locale to C for byte-literal processing. GNU sed is unaffected
+        # but the override is harmless there.
+        export LC_ALL=C
+        export LANG=C
         # Patch CMakeLists: SHARED→STATIC, remove LTDL/EXPAT/ZLIB refs, remove DLL export macros
         # Use sed -i.bak for BSD/GNU sed compatibility
         find "${output_dir}" -name CMakeLists.txt -exec \
@@ -216,11 +244,19 @@ install_graphviz_headers() {
 # Collect all .a files from a build tree.
 # Prints paths to stdout.
 #
+# Excludes:
+#   - CMake's internal `_CMakeLTOTest-*/bin/libfoo.a` scratch archive (it's
+#     built with host attributes and breaks cross-target links, notably
+#     Android x86_64 where it's tagged for glibc-x86_64 ELF).
+#   - CMake feature-probe scratch under CMakeFiles/<check>/.
+#
 # Usage: collect_static_libs <build_dir> <install_dir>
 collect_static_libs() {
     local build_dir="$1"
     local install_dir="$2"
-    find "${build_dir}" "${install_dir}" -name "*.a" -type f 2>/dev/null | sort -u
+    find "${build_dir}" "${install_dir}" -name "*.a" -type f 2>/dev/null \
+        | grep -Ev '(_CMakeLTOTest-|/CMakeScratch/|/CMakeTmp/)' \
+        | sort -u
 }
 
 verify_output() {
