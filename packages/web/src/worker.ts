@@ -1,10 +1,10 @@
-import { createServerWasmRenderer } from './index';
+import { createServerWasmRenderer } from './index.js';
 import {
   GraphvizWebError,
   type GraphvizWorkerErrorPayload,
   type GraphvizWorkerRequest,
   type GraphvizWorkerResponse,
-} from './shared';
+} from './shared.js';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 const renderer = createServerWasmRenderer();

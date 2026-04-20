@@ -20,9 +20,10 @@ import {
   loadDefaultVizWasmModule,
   normalizeRenderOptions,
   snapshotCapabilities,
-} from './shared';
+} from './shared.js';
 
-export * from './shared';
+export * from './shared.js';
+export { Graphviz, createGraphviz, type GraphvizLoadOptions } from './graphviz.js';
 
 export interface GraphvizRenderer {
   preload(): Promise<GraphvizCapabilities>;
