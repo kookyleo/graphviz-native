@@ -73,6 +73,14 @@ GV_CMAKE_COMMON_ARGS=(
     -DENABLE_TCL=OFF
     -DENABLE_SWIG=OFF
     -DGRAPHVIZ_CLI=OFF
+    # Graphviz 14.x's neatogen/delaunay.c pulls in GTS + glib when
+    # find_package(GTS) succeeds. Windows-latest has GTS installed via
+    # chocolatey's toolchain, which then breaks our static link because
+    # glib / GTS aren't in our wrapper's library list. Suppress the
+    # find_package entirely so delaunay.c uses its no-GTS branch.
+    # ANN is similarly optional and unused by our wrapper surface.
+    -DCMAKE_DISABLE_FIND_PACKAGE_GTS=TRUE
+    -DCMAKE_DISABLE_FIND_PACKAGE_ANN=TRUE
     # Legacy lowercase names, still read by some CMakeLists.
     -Denable_ltdl=OFF
     -Dwith_smyrna=OFF

@@ -56,13 +56,21 @@ build_ios_arch() {
     log_info "Building for iOS ${sdk} ${arch} (target: ${target_triple})..."
 
     mkdir -p "${build_dir}/graphviz"
+    # Graphviz 14.x adds first-class C++ libraries (vpsc, neatogen cost
+    # models, sfdpgen). Without explicit CXX flags, CMake's iOS defaults
+    # can emit LLVM bitcode objects (magic 0xb17c0de) that
+    # `xcodebuild -create-xcframework` refuses because it can't read the
+    # architecture from a bitcode-only archive. Pin -fno-lto / -O2 and
+    # disable embed-bitcode to force conventional Mach-O objects.
     cmake -S "${GV_PATCHED}" -B "${build_dir}/graphviz" \
         -DCMAKE_SYSTEM_NAME=iOS \
         -DCMAKE_OSX_ARCHITECTURES="${arch}" \
         -DCMAKE_OSX_SYSROOT="${sdk_path}" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="${IOS_MIN_VERSION}" \
         "${GV_CMAKE_COMMON_ARGS[@]}" \
-        "-DCMAKE_C_FLAGS=-target ${target_triple} -O2 -fPIC -Wno-incompatible-function-pointer-types" \
+        "-DCMAKE_C_FLAGS=-target ${target_triple} -O2 -fPIC -fno-lto -fembed-bitcode=off -Wno-incompatible-function-pointer-types" \
+        "-DCMAKE_CXX_FLAGS=-target ${target_triple} -O2 -fPIC -fno-lto -fembed-bitcode=off" \
+        -DCMAKE_XCODE_ATTRIBUTE_ENABLE_BITCODE=NO \
         -DCMAKE_INSTALL_PREFIX="${gv_install}"
 
     # Build only library targets (skip pango — not available on iOS)
