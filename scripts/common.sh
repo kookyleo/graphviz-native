@@ -104,11 +104,14 @@ prepare_graphviz_source() {
                 -e 's/\${ZLIB_LIBRARY}//g' \
                 -e 's/-DEXPORT_[A-Z]*//g' \
                 {} +
-        # Top-level CMakeLists: fix min version, remove cmd/tclpkg (we only build libs)
+        # Top-level CMakeLists: remove cmd/tclpkg (we only build libs), and
+        # neutralize the UNIX `find_library(MATH_LIB m)` step which fails
+        # under Emscripten (libm is built into musl and has no *.a on disk).
+        # Replacing with a direct `-lm` that emcc knows how to resolve.
         sed -i.bak \
-            -e 's/cmake_minimum_required *(VERSION *2\.[0-9]*/cmake_minimum_required(VERSION 3.10/' \
             -e '/add_subdirectory(cmd)/d' \
             -e '/add_subdirectory(tclpkg)/d' \
+            -e 's|find_library(MATH_LIB m)|set(MATH_LIB m CACHE STRING "math library")|' \
             "${output_dir}/CMakeLists.txt"
         # Strip __declspec from headers for clean static linking on Windows
         find "${output_dir}" -name "*.h" -exec \

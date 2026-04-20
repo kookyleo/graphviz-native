@@ -11,6 +11,7 @@
 // Licensed under the Apache License, Version 2.0 (matches the parent
 // repository). The CGraphviz layout is MIT-licensed by hpcc-systems.
 
+#include <cstddef>
 #include <string>
 
 #include <gvc.h>
@@ -79,7 +80,7 @@ class CGraphviz {
     Agraph_t *graph = agmemread(src.c_str());
     if (graph) {
       char *data = nullptr;
-      unsigned int length = 0;
+      std::size_t length = 0;
 
       if (gvLayout(gvc, graph, engine.c_str()) == 0) {
         if (gvRenderData(gvc, graph, format.c_str(), &data, &length) == 0 &&

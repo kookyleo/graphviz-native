@@ -129,12 +129,22 @@ EMBIND_CXX_FLAGS=(
     -DPACKAGE_VERSION="\"${GRAPHVIZ_VERSION}\""
     -I"${GV_INSTALL}/include"
     -I"${GV_INSTALL}/include/graphviz"
+    # Generated graphviz_version.h lives at the CMake build root
+    -I"${BUILD_DIR}/graphviz"
+    # Source-tree headers for gvc.h/gvplugin.h/cgraph.h etc. that aren't
+    # installed because we didn't run `cmake --install`.
+    -I"${GV_PATCHED}/lib/gvc"
+    -I"${GV_PATCHED}/lib/cgraph"
+    -I"${GV_PATCHED}/lib/cdt"
+    -I"${GV_PATCHED}/lib/pathplan"
+    -I"${GV_PATCHED}/lib/common"
 )
 
 EMBIND_LINK_FLAGS=(
     -O2
     -fwasm-exceptions
     -lembind
+    --no-entry
     -sWASM=1
     -sMODULARIZE=1
     -sEXPORT_ES6=1
