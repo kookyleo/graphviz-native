@@ -67,9 +67,10 @@ mkdir -p "${BUILD_DIR}"
 GV_PATCHED="${BUILD_DIR}/graphviz-src"
 prepare_graphviz_source "${GV_PATCHED}"
 
-# Build expat from source (not available in NDK)
-EXPAT_SRC="${BUILD_DIR}/expat-src"
-download_expat "${EXPAT_SRC}"
+# NOTE: expat is no longer required — GV_CMAKE_COMMON_ARGS sets
+# WITH_EXPAT=OFF for Graphviz 14.x. HTML labels are disabled on Android
+# to match the other native platforms. If re-enabled later, restore the
+# download_expat/build_expat calls and the -DEXPAT_* cmake forwards.
 
 build_android_abi() {
     local abi="$1"
@@ -79,13 +80,6 @@ build_android_abi() {
 
     log_info "Building for Android ${abi}..."
 
-    # Build expat for this ABI
-    local expat_install="${build_dir}/expat-install"
-    build_expat "${EXPAT_SRC}" "${build_dir}/expat-build" "${expat_install}" \
-        -DCMAKE_TOOLCHAIN_FILE="${NDK_TOOLCHAIN}" \
-        -DANDROID_ABI="${abi}" \
-        -DANDROID_NATIVE_API_LEVEL="${ANDROID_API}"
-
     mkdir -p "${build_dir}/graphviz"
     cmake -S "${GV_PATCHED}" -B "${build_dir}/graphviz" \
         -DCMAKE_TOOLCHAIN_FILE="${NDK_TOOLCHAIN}" \
@@ -93,9 +87,7 @@ build_android_abi() {
         -DANDROID_NATIVE_API_LEVEL="${ANDROID_API}" \
         -DANDROID_STL=c++_shared \
         "${GV_CMAKE_COMMON_ARGS[@]}" \
-        "-DCMAKE_C_FLAGS=-O2 -fPIC -I${expat_install}/include" \
-        -DEXPAT_INCLUDE_DIR="${expat_install}/include" \
-        -DEXPAT_LIBRARY="${expat_install}/lib/libexpat.a" \
+        "-DCMAKE_C_FLAGS=-O2 -fPIC" \
         -DCMAKE_INSTALL_PREFIX="${gv_install}"
 
     # No pango on Android
@@ -111,10 +103,11 @@ build_android_abi() {
         libs+=("$lib")
     done < <(collect_static_libs "${build_dir}/graphviz" "${gv_install}")
 
-    # Determine NDK clang
+    # Determine NDK clang. BSD find (macOS) lacks `-printf`, so derive the
+    # host-tag via basename of the single prebuilt directory.
     local cc
     local host_tag
-    host_tag=$(find "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | head -1)
+    host_tag=$(basename "$(find "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/" -mindepth 1 -maxdepth 1 -type d | head -1)")
     cc="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/${host_tag}/bin/clang"
 
     local target_flag=""
@@ -132,17 +125,15 @@ build_android_abi() {
         -o "${build_dir}/graphviz_api.o" \
         "${WRAPPER_SRC}/graphviz_api.c"
 
-    # Include expat static library
-    libs+=("${expat_install}/lib/libexpat.a")
-
     mkdir -p "${install_dir}/lib" "${install_dir}/include"
+    # WITH_EXPAT=OFF / WITH_ZLIB=OFF → no -lexpat / -lz needed.
     "${cc}" -shared "${target_flag}" \
         -o "${install_dir}/lib/libgraphviz_api.so" \
         "${build_dir}/graphviz_api.o" \
         -Wl,--whole-archive \
         "${libs[@]}" \
         -Wl,--no-whole-archive \
-        -lm -lz -llog
+        -lm
 
     cp "${WRAPPER_SRC}/graphviz_api.h" "${install_dir}/include/"
 

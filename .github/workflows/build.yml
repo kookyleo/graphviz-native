@@ -161,9 +161,25 @@ jobs:
           submodules: recursive
 
       - name: Install dependencies
+        # choco.org serves 503 periodically; retry a few times before
+        # giving up. Each package is installed with its own retry loop
+        # so a transient failure on one doesn't fall through to the next.
+        shell: powershell
         run: |
-          choco install winflexbison3 -y
-          choco install pkgconfiglite -y
+          $pkgs = @('winflexbison3', 'pkgconfiglite')
+          foreach ($pkg in $pkgs) {
+            $success = $false
+            for ($i = 1; $i -le 5; $i++) {
+              Write-Host "Installing $pkg (attempt $i)..."
+              choco install $pkg -y --no-progress
+              if ($LASTEXITCODE -eq 0) { $success = $true; break }
+              Start-Sleep -Seconds 10
+            }
+            if (-not $success) {
+              Write-Error "Failed to install $pkg after 5 attempts"
+              exit 1
+            }
+          }
 
       - name: Build
         shell: bash

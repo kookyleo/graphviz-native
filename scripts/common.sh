@@ -48,11 +48,40 @@ check_build_deps() {
 # Common CMake options for Graphviz:
 # - Disable GUI/editor features and plugin loading
 # - Enable core layout engines
+#
+# Graphviz 14.x renamed the CMake flag family to UPPERCASE and defaults
+# `WITH_EXPAT`/`WITH_ZLIB` to AUTO (ON if detected). We explicitly force
+# them OFF because our native wrapper doesn't link expat/zlib and we want
+# behavior identical to the Graphviz 12.x era. The old lowercase vars are
+# kept for belt-and-braces compat with older CMakeLists that still read them.
+#
 # Usage: cmake "${GV_CMAKE_COMMON_ARGS[@]}" ...
 GV_CMAKE_COMMON_ARGS=(
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     -DBUILD_SHARED_LIBS=OFF
+    # CMake's IPO/LTO test emits a host-tagged libfoo.a we'd accidentally
+    # sweep into the final link on cross-compile targets (notably Android).
+    # Disable it globally; we don't need LTO for the static libs.
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+    # 14.x UPPERCASE flag family — these are the authoritative names.
+    -DWITH_EXPAT=OFF
+    -DWITH_ZLIB=OFF
+    -DWITH_GVEDIT=OFF
+    -DWITH_SMYRNA=OFF
+    -DENABLE_LTDL=OFF
+    -DENABLE_TCL=OFF
+    -DENABLE_SWIG=OFF
+    -DGRAPHVIZ_CLI=OFF
+    # Graphviz 14.x's neatogen/delaunay.c pulls in GTS + glib when
+    # find_package(GTS) succeeds. Windows-latest has GTS installed via
+    # chocolatey's toolchain, which then breaks our static link because
+    # glib / GTS aren't in our wrapper's library list. Suppress the
+    # find_package entirely so delaunay.c uses its no-GTS branch.
+    # ANN is similarly optional and unused by our wrapper surface.
+    -DCMAKE_DISABLE_FIND_PACKAGE_GTS=TRUE
+    -DCMAKE_DISABLE_FIND_PACKAGE_ANN=TRUE
+    # Legacy lowercase names, still read by some CMakeLists.
     -Denable_ltdl=OFF
     -Dwith_smyrna=OFF
     -Dwith_digcola=ON
@@ -85,6 +114,13 @@ prepare_graphviz_source() {
             log_error "Failed to copy Graphviz source"
             exit 1
         fi
+        # Graphviz 14.x ships a handful of source files containing non-UTF8
+        # bytes (e.g. translated strings, author names). BSD sed on macOS
+        # aborts with "RE error: illegal byte sequence" unless we pin the
+        # locale to C for byte-literal processing. GNU sed is unaffected
+        # but the override is harmless there.
+        export LC_ALL=C
+        export LANG=C
         # Patch CMakeLists: SHARED→STATIC, remove LTDL/EXPAT/ZLIB refs, remove DLL export macros
         # Use sed -i.bak for BSD/GNU sed compatibility
         find "${output_dir}" -name CMakeLists.txt -exec \
@@ -108,10 +144,16 @@ prepare_graphviz_source() {
         # neutralize the UNIX `find_library(MATH_LIB m)` step which fails
         # under Emscripten (libm is built into musl and has no *.a on disk).
         # Replacing with a direct `-lm` that emcc knows how to resolve.
+        # Also force-disable the IPO auto-enable so
+        # `-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF` on the command line
+        # actually wins — Graphviz 14.x unconditionally sets IPO=ON for
+        # Release builds, which emits LLVM bitcode objects that
+        # xcodebuild -create-xcframework refuses on iOS.
         sed -i.bak \
             -e '/add_subdirectory(cmd)/d' \
             -e '/add_subdirectory(tclpkg)/d' \
             -e 's|find_library(MATH_LIB m)|set(MATH_LIB m CACHE STRING "math library")|' \
+            -e 's|set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)|set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)|' \
             "${output_dir}/CMakeLists.txt"
         # Strip __declspec from headers for clean static linking on Windows
         find "${output_dir}" -name "*.h" -exec \
@@ -216,11 +258,19 @@ install_graphviz_headers() {
 # Collect all .a files from a build tree.
 # Prints paths to stdout.
 #
+# Excludes:
+#   - CMake's internal `_CMakeLTOTest-*/bin/libfoo.a` scratch archive (it's
+#     built with host attributes and breaks cross-target links, notably
+#     Android x86_64 where it's tagged for glibc-x86_64 ELF).
+#   - CMake feature-probe scratch under CMakeFiles/<check>/.
+#
 # Usage: collect_static_libs <build_dir> <install_dir>
 collect_static_libs() {
     local build_dir="$1"
     local install_dir="$2"
-    find "${build_dir}" "${install_dir}" -name "*.a" -type f 2>/dev/null | sort -u
+    find "${build_dir}" "${install_dir}" -name "*.a" -type f 2>/dev/null \
+        | grep -Ev '(_CMakeLTOTest-|/CMakeScratch/|/CMakeTmp/)' \
+        | sort -u
 }
 
 verify_output() {

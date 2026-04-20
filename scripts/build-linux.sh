@@ -95,7 +95,10 @@ gcc -c -fPIC -O2 \
     -o "${BUILD_DIR}/graphviz_api.o" \
     "${WRAPPER_SRC}/graphviz_api.c"
 
-# System libraries
+# System libraries. WITH_EXPAT=OFF / WITH_ZLIB=OFF in GV_CMAKE_COMMON_ARGS
+# means the static libs shouldn't reference libexpat / libz. Keep them in
+# SYS_LIBS defensively on Linux where apt pulls them in anyway — the linker
+# will just resolve them. Drop only if the link actually fails.
 SYS_LIBS=(-lm -lz -lexpat)
 if pkg-config --exists pangocairo 2>/dev/null; then
     while IFS= read -r flag; do

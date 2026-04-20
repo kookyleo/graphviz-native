@@ -73,7 +73,14 @@ build_single_arch() {
         "${WRAPPER_SRC}/graphviz_api.c"
 
     mkdir -p "${build_dir}/out"
-    clang -shared -arch "${arch}" -mmacosx-version-min=10.15 \
+    # Graphviz 14.x introduced first-class C++ libraries (vpsc,
+    # neatogen layout cost models). Linking with `clang` leaves libc++
+    # symbols unresolved; use `clang++` to pull the C++ runtime in.
+    # WITH_EXPAT=OFF / WITH_ZLIB=OFF in GV_CMAKE_COMMON_ARGS means the
+    # static libs shouldn't reference libexpat / libz. Keep the flags
+    # here defensively — macOS ships both, and the linker simply ignores
+    # unused libraries.
+    clang++ -shared -arch "${arch}" -mmacosx-version-min=10.15 \
         -install_name "@rpath/libgraphviz_api.dylib" \
         -o "${build_dir}/out/libgraphviz_api.dylib" \
         "${build_dir}/graphviz_api.o" \
