@@ -1,5 +1,6 @@
-import { DEFAULT_ENGINE, GraphvizWebError, assertActive, assertEngineSupported, assertFormatSupported, assertFormatsSupported, issuesToMessage, loadDefaultVizWasmModule, normalizeRenderOptions, snapshotCapabilities, } from './shared';
-export * from './shared';
+import { DEFAULT_ENGINE, GraphvizWebError, assertActive, assertEngineSupported, assertFormatSupported, assertFormatsSupported, issuesToMessage, loadDefaultVizWasmModule, normalizeRenderOptions, snapshotCapabilities, } from './shared.js';
+export * from './shared.js';
+export { Graphviz, createGraphviz } from './graphviz.js';
 function ensureSingleRenderSuccess(result) {
     if (result.status === 'success' && typeof result.output === 'string') {
         return result.output;

@@ -1,5 +1,6 @@
-import { type GraphvizBatchDiagnostics, type GraphvizCapabilities, type GraphvizRenderDiagnostics, type GraphvizRenderOptions, type LoadVizWasmModule } from './shared';
-export * from './shared';
+import { type GraphvizBatchDiagnostics, type GraphvizCapabilities, type GraphvizRenderDiagnostics, type GraphvizRenderOptions, type LoadVizWasmModule } from './shared.js';
+export * from './shared.js';
+export { Graphviz, createGraphviz, type GraphvizLoadOptions } from './graphviz.js';
 export interface GraphvizRenderer {
     preload(): Promise<GraphvizCapabilities>;
     getCapabilities(): Promise<GraphvizCapabilities>;

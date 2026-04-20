@@ -1,5 +1,5 @@
-import { createServerWasmRenderer } from './index';
-import { GraphvizWebError, } from './shared';
+import { createServerWasmRenderer } from './index.js';
+import { GraphvizWebError, } from './shared.js';
 const scope = self;
 const renderer = createServerWasmRenderer();
 function serializeError(error) {
