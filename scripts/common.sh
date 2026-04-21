@@ -121,7 +121,16 @@ prepare_graphviz_source() {
         # but the override is harmless there.
         export LC_ALL=C
         export LANG=C
-        # Patch CMakeLists: SHARED→STATIC, remove LTDL/EXPAT/ZLIB refs, remove DLL export macros
+        # Patch CMakeLists: SHARED→STATIC, remove LTDL/ZLIB refs, remove DLL export macros.
+        #
+        # We deliberately do NOT strip EXPAT_* references anymore. When
+        # WITH_EXPAT=ON the caller wants HTML-label support and relies on
+        # find_package(EXPAT) populating EXPAT_INCLUDE_DIR/EXPAT_LIBRARY;
+        # stripping them silently drops HTML labels (<<TABLE>>, <<B>bold</B>>,
+        # cluster BGCOLOR, etc.) from the rendered SVG — which broke our wasm
+        # build (see build-wasm.sh Phase 1 notes). Callers that pass
+        # WITH_EXPAT=OFF are unaffected because the enclosing `if(EXPAT_FOUND)`
+        # guards collapse when expat isn't searched for.
         # Use sed -i.bak for BSD/GNU sed compatibility
         find "${output_dir}" -name CMakeLists.txt -exec \
             sed -i.bak \
@@ -130,10 +139,6 @@ prepare_graphviz_source() {
                 -e 's/\${LTDL_INCLUDE_DIR}//g' \
                 -e 's/\${LTDL_LIBRARIES}//g' \
                 -e 's/\${LTDL_LIBRARY}//g' \
-                -e 's/\${EXPAT_INCLUDE_DIRS}//g' \
-                -e 's/\${EXPAT_INCLUDE_DIR}//g' \
-                -e 's/\${EXPAT_LIBRARIES}//g' \
-                -e 's/\${EXPAT_LIBRARY}//g' \
                 -e 's/\${ZLIB_INCLUDE_DIRS}//g' \
                 -e 's/\${ZLIB_INCLUDE_DIR}//g' \
                 -e 's/\${ZLIB_LIBRARIES}//g' \
@@ -208,21 +213,28 @@ download_expat() {
 }
 
 # Build expat as a static library for cross-compilation.
+#
 # Usage: build_expat <source_dir> <build_dir> <install_dir> [extra_cmake_args...]
+#
+# The `CMAKE_CMD` environment variable can be set to `emcmake cmake` (or any
+# other wrapper) to cross-compile for non-native toolchains — notably the
+# wasm build, which needs expat compiled through the Emscripten toolchain.
+# Default is plain `cmake`, preserving behavior for android/native callers.
 build_expat() {
     local source_dir="$1"
     local build_dir="$2"
     local install_dir="$3"
     shift 3
     local cmake_extra_args=("$@")
+    local cmake_cmd=(${CMAKE_CMD:-cmake})
 
     if [ -f "${install_dir}/lib/libexpat.a" ] || [ -f "${install_dir}/lib/expat.lib" ]; then
         return 0
     fi
 
-    log_info "Building expat..."
+    log_info "Building expat (configure: ${cmake_cmd[*]})..."
     mkdir -p "${build_dir}"
-    cmake -S "${source_dir}" -B "${build_dir}" \
+    "${cmake_cmd[@]}" -S "${source_dir}" -B "${build_dir}" \
         -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_SHARED_LIBS=OFF \
         -DEXPAT_BUILD_TOOLS=OFF \

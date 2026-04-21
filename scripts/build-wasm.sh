@@ -45,6 +45,18 @@ mkdir -p "${BUILD_DIR}"
 GV_PATCHED="${BUILD_DIR}/graphviz-src"
 prepare_graphviz_source "${GV_PATCHED}"
 
+# Step 1b: Build expat through the Emscripten toolchain so Graphviz's
+# HTML-label parser (htmllex/htmlparse) can be enabled. Without expat the
+# HTML label family (<<TABLE>>, <<B>bold</B>>, cluster BGCOLOR, etc.) is
+# silently dropped, which breaks downstream consumers such as PlantUML
+# (synthetic BGCOLOR markers, HTML-styled cluster labels).
+EXPAT_SRC="${BUILD_DIR}/expat-src"
+EXPAT_BUILD="${BUILD_DIR}/expat-build"
+EXPAT_INSTALL="${BUILD_DIR}/expat-install"
+download_expat "${EXPAT_SRC}"
+CMAKE_CMD="emcmake cmake" build_expat "${EXPAT_SRC}" "${EXPAT_BUILD}" "${EXPAT_INSTALL}" \
+    -DCMAKE_C_FLAGS="-O2 -fPIC"
+
 # Step 2: Configure Graphviz with Emscripten.
 log_info "Configuring Graphviz for Wasm..."
 mkdir -p "${BUILD_DIR}/graphviz"
@@ -52,6 +64,9 @@ mkdir -p "${BUILD_DIR}/graphviz"
 # -DGRAPHVIZ_CLI=OFF skips cmd/contrib builds that don't apply to wasm.
 # -Wno-incompatible-function-pointer-types is kept for defensive compat;
 # 14.x is mostly clean but the occasional stray cast still appears.
+# WITH_EXPAT=ON + explicit EXPAT_INCLUDE_DIR/EXPAT_LIBRARY points Graphviz
+# at the static expat we just built (Emscripten FindEXPAT otherwise looks
+# at the host system).
 if ! emcmake cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -72,11 +87,11 @@ if ! emcmake cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     -Dwith_digcola=ON \
     -Dwith_ortho=ON \
     -Dwith_sfdp=ON \
-    -Dwith_expat=OFF \
+    -DWITH_EXPAT=ON \
+    -DEXPAT_INCLUDE_DIR="${EXPAT_INSTALL}/include" \
+    -DEXPAT_LIBRARY="${EXPAT_INSTALL}/lib/libexpat.a" \
     -Dwith_zlib=OFF \
     -Dwith_pangocairo=OFF \
-    -DEXPAT_LIBRARY="" \
-    -DEXPAT_INCLUDE_DIR="" \
     -DZLIB_LIBRARY="" \
     -DZLIB_INCLUDE_DIR=""; then
     log_error "CMake configuration failed"
@@ -102,6 +117,11 @@ GV_STATIC_LIBS=()
 while IFS= read -r lib; do
     GV_STATIC_LIBS+=("$lib")
 done < <(collect_static_libs "${BUILD_DIR}/graphviz" "${GV_INSTALL}" 2>/dev/null)
+# Append expat so the final wasm link can resolve XML_ParserCreate etc.
+# pulled in by lib/common/htmllex.c when WITH_EXPAT=ON.
+if [ -f "${EXPAT_INSTALL}/lib/libexpat.a" ]; then
+    GV_STATIC_LIBS+=("${EXPAT_INSTALL}/lib/libexpat.a")
+fi
 log_info "Found ${#GV_STATIC_LIBS[@]} static libraries"
 
 # Step 5: Compile + link the C++ Embind wrapper into a single Wasm module.
