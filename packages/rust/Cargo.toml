@@ -1,9 +1,9 @@
 [package]
 name = "graphviz-anywhere"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 rust-version = "1.64"
-description = "Safe Rust wrapper for the graphviz-anywhere C library with bundled prebuilt binaries"
+description = "Safe Rust wrapper for the graphviz-anywhere C library with bundled prebuilt binaries (and a wasm32 JS bridge)"
 license = "Apache-2.0"
 authors = ["kookyleo <kookyleo@gmail.com>"]
 repository = "https://github.com/nicekook/graphviz-anywhere"
@@ -17,3 +17,6 @@ include = [
 
 [dependencies]
 thiserror = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"

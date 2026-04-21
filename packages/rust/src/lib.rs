@@ -21,11 +21,23 @@
 //! underlying Graphviz library uses global mutable state and is not
 //! thread-safe. Each thread that needs rendering should create its own context,
 //! or access should be externally synchronized.
+//!
+//! # wasm32 target
+//!
+//! When built for `wasm32-unknown-unknown`, the native C library is not
+//! linked. Instead, [`GraphvizContext::render`] delegates to a JavaScript
+//! function the host must provide. See the [`wasm`] module for the contract.
 
+#[cfg(not(target_arch = "wasm32"))]
 mod ffi;
 
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
+#[cfg(not(target_arch = "wasm32"))]
 use std::ptr;
 
 /// Errors that can occur when using the Graphviz API.
@@ -76,6 +88,7 @@ pub enum GraphvizError {
     Unknown(i32),
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl GraphvizError {
     /// Map a C error code to the corresponding Rust error variant.
     fn from_code(code: ffi::gv_error_t) -> Self {
@@ -114,6 +127,7 @@ pub enum Engine {
     Patchwork,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Engine {
     /// Return the C string name expected by the library.
     fn as_cstr(&self) -> &'static CStr {
@@ -152,6 +166,7 @@ pub enum Format {
     Plain,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Format {
     /// Return the C string name expected by the library.
     fn as_cstr(&self) -> &'static CStr {
@@ -171,12 +186,17 @@ impl Format {
 
 /// A Graphviz rendering context.
 ///
-/// Wraps the opaque `gv_context_t` pointer from the C library.
-/// Automatically frees the underlying resources when dropped.
+/// On native targets this wraps the opaque `gv_context_t` pointer from the
+/// C library and automatically frees the underlying resources when dropped.
+///
+/// On `wasm32-unknown-unknown` targets there is no native context; this
+/// type is a zero-sized marker and all work is delegated to the host-provided
+/// JavaScript `__graphviz_anywhere_render` function (see the [`wasm`] module).
 ///
 /// This type is `!Send` and `!Sync` because Graphviz uses global mutable
 /// state internally.
 pub struct GraphvizContext {
+    #[cfg(not(target_arch = "wasm32"))]
     raw: *mut ffi::gv_context_t,
     /// Prevent Send and Sync: the raw pointer plus PhantomData<*mut ()>
     /// ensures the compiler treats this as neither Send nor Sync.
@@ -187,6 +207,9 @@ impl GraphvizContext {
     /// Create a new Graphviz context.
     ///
     /// Returns an error if the underlying C library fails to allocate.
+    /// On `wasm32-unknown-unknown` this is always `Ok(...)` and a no-op;
+    /// the real context is owned by the JavaScript side.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Result<Self, GraphvizError> {
         let raw = unsafe { ffi::gv_context_new() };
         if raw.is_null() {
@@ -194,6 +217,14 @@ impl GraphvizContext {
         }
         Ok(Self {
             raw,
+            _not_send_sync: PhantomData,
+        })
+    }
+
+    /// Create a new Graphviz context (wasm32 no-op).
+    #[cfg(target_arch = "wasm32")]
+    pub fn new() -> Result<Self, GraphvizError> {
+        Ok(Self {
             _not_send_sync: PhantomData,
         })
     }
@@ -211,6 +242,7 @@ impl GraphvizContext {
     /// The raw rendered bytes on success, or a [`GraphvizError`] on failure.
     /// For text formats like SVG, the bytes are valid UTF-8 and can be
     /// converted with `String::from_utf8`.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn render(
         &self,
         dot: &str,
@@ -256,6 +288,17 @@ impl GraphvizContext {
         Ok(bytes)
     }
 
+    /// Render via the host-provided JavaScript bridge.
+    #[cfg(target_arch = "wasm32")]
+    pub fn render(
+        &self,
+        dot: &str,
+        engine: Engine,
+        format: Format,
+    ) -> Result<Vec<u8>, GraphvizError> {
+        wasm::render(dot, engine, format)
+    }
+
     /// Render a DOT string and return the result as a UTF-8 string.
     ///
     /// This is a convenience wrapper around [`render`](Self::render) for
@@ -273,6 +316,7 @@ impl GraphvizContext {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for GraphvizContext {
     fn drop(&mut self) {
         if !self.raw.is_null() {
@@ -281,9 +325,18 @@ impl Drop for GraphvizContext {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+impl Drop for GraphvizContext {
+    fn drop(&mut self) {
+        // No-op: the JavaScript side owns the context.
+    }
+}
+
 /// Return the Graphviz library version string.
 ///
-/// Returns `None` if the C library returns a null pointer.
+/// Returns `None` if the C library returns a null pointer. On
+/// `wasm32-unknown-unknown` this always returns `None`.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn version() -> Option<String> {
     let ptr = unsafe { ffi::gv_version() };
     if ptr.is_null() {
@@ -293,10 +346,16 @@ pub fn version() -> Option<String> {
     Some(cstr.to_string_lossy().into_owned())
 }
 
+#[cfg(target_arch = "wasm32")]
+pub fn version() -> Option<String> {
+    None
+}
+
 /// Return a human-readable description of a raw C error code.
 ///
 /// Primarily useful for debugging; prefer the [`GraphvizError`] Display impl
-/// in most cases.
+/// in most cases. On `wasm32-unknown-unknown` this always returns `None`.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn strerror(code: i32) -> Option<String> {
     let ptr = unsafe { ffi::gv_strerror(code) };
     if ptr.is_null() {
@@ -306,10 +365,15 @@ pub fn strerror(code: i32) -> Option<String> {
     Some(cstr.to_string_lossy().into_owned())
 }
 
+#[cfg(target_arch = "wasm32")]
+pub fn strerror(_code: i32) -> Option<String> {
+    None
+}
+
 // GraphvizContext is intentionally !Send and !Sync via PhantomData<*mut ()>.
 // Graphviz uses global mutable state and is not safe to share across threads.
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
 

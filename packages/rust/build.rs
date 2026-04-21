@@ -99,11 +99,20 @@ fn try_repo_output(manifest_dir: &Path) -> bool {
 }
 
 fn main() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let target_arch =
+        env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_else(|_| "unknown".to_string());
 
     println!("cargo:rerun-if-env-changed=GRAPHVIZ_ANYWHERE_DIR");
     println!("cargo:rerun-if-env-changed=GRAPHVIZ_NATIVE_DIR");
     println!("cargo:rerun-if-changed=prebuilt/");
+
+    // On wasm32, the Rust crate delegates to a host-provided JavaScript
+    // function — no native linking required.
+    if target_arch == "wasm32" {
+        return;
+    }
+
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
     if try_env_override() || try_prebuilt(&manifest_dir) || try_repo_output(&manifest_dir) {
         return;
