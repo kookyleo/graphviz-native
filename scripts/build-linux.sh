@@ -113,7 +113,13 @@ if pkg-config --exists pangocairo 2>/dev/null; then
     done < <(pkg-config --libs pangocairo | tr ' ' '\n')
 fi
 
-gcc -shared -o "${INSTALL_DIR}/lib/libgraphviz_api.so" \
+# Graphviz 14.x introduced first-class C++ libraries (vpsc, neatogen
+# layout cost models). Linking the unified .so with `gcc` leaves libstdc++
+# symbols unresolved at runtime (e.g. dlopen fails with
+# `undefined symbol: _ZTVN10__cxxabiv117__class_type_infoE`). Use `g++` so
+# the C++ runtime is pulled in, matching what build-macos.sh does with
+# `clang++`.
+g++ -shared -o "${INSTALL_DIR}/lib/libgraphviz_api.so" \
     "${BUILD_DIR}/graphviz_api.o" \
     -Wl,--whole-archive \
     "${GV_STATIC_LIBS[@]}" \
