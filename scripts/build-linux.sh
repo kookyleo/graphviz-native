@@ -58,10 +58,17 @@ GV_PATCHED="${BUILD_DIR}/graphviz-src"
 prepare_graphviz_source "${GV_PATCHED}"
 
 # Step 2: Configure and build Graphviz (all static)
+#
+# Linux build hosts (ubuntu-latest in CI) have libexpat + libz available
+# via apt, so we enable HTML-label support (requires expat) and DEFLATE
+# compression (requires zlib). Downstream consumers that rely on
+# record/HTML labels (e.g. plantuml-little) need these.
 log_info "Configuring Graphviz..."
 mkdir -p "${BUILD_DIR}/graphviz"
 cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     "${GV_CMAKE_COMMON_ARGS[@]}" \
+    -DWITH_EXPAT=ON \
+    -DWITH_ZLIB=ON \
     "-DCMAKE_C_FLAGS=-O2 -fPIC ${HB_CFLAGS}" \
     -DCMAKE_INSTALL_PREFIX="${BUILD_DIR}/graphviz-install"
 

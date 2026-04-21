@@ -45,8 +45,15 @@ build_single_arch() {
     log_info "Building for macOS ${arch}..."
     mkdir -p "${build_dir}/graphviz"
 
+    # macOS ships both libexpat and libz system-wide, so we can enable
+    # HTML-label support (requires expat) and DEFLATE (requires zlib)
+    # on this platform without taking on any runtime dependency beyond
+    # what is already in /usr/lib. Downstream consumers that rely on
+    # record/HTML labels (e.g. plantuml-little) need this.
     cmake -S "${GV_PATCHED}" -B "${build_dir}/graphviz" \
         "${GV_CMAKE_COMMON_ARGS[@]}" \
+        -DWITH_EXPAT=ON \
+        -DWITH_ZLIB=ON \
         "-DCMAKE_C_FLAGS=-O2 -fPIC -Wno-incompatible-function-pointer-types" \
         -DCMAKE_OSX_ARCHITECTURES="${arch}" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15" \
