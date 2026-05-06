@@ -25,7 +25,19 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Resolve graphviz submodule pin
+        id: gvpin
+        run: echo "sha=$(git rev-parse HEAD:graphviz)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache build output
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: output/linux-${{ matrix.arch }}
+          key: gv-build-linux-${{ matrix.arch }}-${{ steps.gvpin.outputs.sha }}-${{ hashFiles('capi/**', 'scripts/build-linux.sh', 'scripts/common.sh') }}
+
       - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential bison flex \
@@ -33,6 +45,7 @@ jobs:
             libpango1.0-dev libharfbuzz-dev
 
       - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           chmod +x scripts/*.sh
           ./scripts/build-linux.sh --arch ${{ matrix.arch }}
@@ -64,10 +77,23 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Resolve graphviz submodule pin
+        id: gvpin
+        run: echo "sha=$(git rev-parse HEAD:graphviz)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache build output
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: output/macos-universal
+          key: gv-build-macos-universal-${{ steps.gvpin.outputs.sha }}-${{ hashFiles('capi/**', 'scripts/build-macos.sh', 'scripts/common.sh') }}
+
       - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
         run: brew install bison flex
 
       - name: Build universal binary
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           export PATH="$(brew --prefix bison)/bin:$(brew --prefix flex)/bin:$PATH"
           chmod +x scripts/*.sh
@@ -100,10 +126,23 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Resolve graphviz submodule pin
+        id: gvpin
+        run: echo "sha=$(git rev-parse HEAD:graphviz)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache build output
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: output/ios
+          key: gv-build-ios-${{ steps.gvpin.outputs.sha }}-${{ hashFiles('capi/**', 'scripts/build-ios.sh', 'scripts/common.sh') }}
+
       - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
         run: brew install bison flex
 
       - name: Build iOS
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           export PATH="$(brew --prefix bison)/bin:$(brew --prefix flex)/bin:$PATH"
           chmod +x scripts/*.sh
@@ -129,15 +168,29 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Resolve graphviz submodule pin
+        id: gvpin
+        run: echo "sha=$(git rev-parse HEAD:graphviz)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache build output
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: output/android/${{ matrix.abi }}
+          key: gv-build-android-${{ matrix.abi }}-${{ steps.gvpin.outputs.sha }}-${{ hashFiles('capi/**', 'scripts/build-android.sh', 'scripts/common.sh') }}
+
       - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential bison flex pkg-config curl
 
       - name: Setup NDK
+        if: steps.cache.outputs.cache-hit != 'true'
         run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;25.2.9519653"
 
       - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/25.2.9519653"
           chmod +x scripts/*.sh
@@ -160,10 +213,23 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Resolve graphviz submodule pin
+        id: gvpin
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD:graphviz)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache build output
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: output/windows-x86_64
+          key: gv-build-windows-x86_64-${{ steps.gvpin.outputs.sha }}-${{ hashFiles('capi/**', 'scripts/build-windows.sh', 'scripts/common.sh') }}
+
       - name: Install dependencies
         # choco.org serves 503 periodically; retry a few times before
         # giving up. Each package is installed with its own retry loop
         # so a transient failure on one doesn't fall through to the next.
+        if: steps.cache.outputs.cache-hit != 'true'
         shell: powershell
         run: |
           $pkgs = @('winflexbison3', 'pkgconfiglite')
@@ -182,6 +248,7 @@ jobs:
           }
 
       - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           chmod +x scripts/*.sh
@@ -217,12 +284,28 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Resolve graphviz submodule pin
+        id: gvpin
+        run: echo "sha=$(git rev-parse HEAD:graphviz)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache wasm build output
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/web/dist/viz.js
+            packages/web/dist/viz.wasm
+            packages/web/dist/viz.d.ts
+          key: gv-build-wasm-${{ steps.gvpin.outputs.sha }}-${{ hashFiles('capi/**', 'scripts/build-wasm.sh', 'scripts/common.sh') }}
+
       - name: Install emscripten
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential bison flex pkg-config
 
       - name: Setup Emscripten
+        if: steps.cache.outputs.cache-hit != 'true'
         uses: mymindstorm/setup-emsdk@v13
         with:
           version: latest
@@ -231,6 +314,7 @@ jobs:
         # scripts/build-wasm.sh now emits viz.{js,wasm,d.ts} directly
         # into packages/web/dist/ (per the Embind rearch landed in
         # rearch/hpcc-js-aligned). No more output/wasm/ intermediate.
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           chmod +x scripts/*.sh
           ./scripts/build-wasm.sh
