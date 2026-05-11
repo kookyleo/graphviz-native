@@ -10,6 +10,7 @@ repository = "https://github.com/kookyleo/graphviz-anywhere"
 links = "graphviz_api"
 include = [
     "src/",
+    "src/build_helpers.rs",
     "build.rs",
     "Cargo.toml",
     "prebuilt/",
