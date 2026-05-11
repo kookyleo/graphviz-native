@@ -3,7 +3,9 @@
 # Build Graphviz.xcframework for iOS
 #
 # Produces a unified static XCFramework containing all Graphviz functionality
-# for arm64 (device) and arm64 (simulator).
+# for arm64 (device), arm64 (simulator), and x86_64 (simulator, Intel Mac).
+# The two simulator slices are lipo'd into a fat .a before being passed to
+# xcodebuild -create-xcframework.
 #
 # Usage:
 #   ./scripts/build-ios.sh
@@ -11,7 +13,9 @@
 # Environment variables:
 #   BUILD_DIR       - Build directory (default: build/ios)
 #   INSTALL_DIR     - Install prefix (default: output/ios)
-#   IOS_MIN_VERSION - Minimum iOS version (default: 12.0)
+#   IOS_MIN_VERSION - Minimum iOS version (default: 15.1)
+#
+# CI also packages per-slice tarballs — see .github/workflows/build.yml
 #
 
 set -euo pipefail
@@ -20,7 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh
 source "${SCRIPT_DIR}/common.sh"
 
-IOS_MIN_VERSION="${IOS_MIN_VERSION:-12.0}"
+IOS_MIN_VERSION="${IOS_MIN_VERSION:-15.1}"
 BUILD_DIR="${BUILD_DIR:-${PROJECT_ROOT}/build/ios}"
 INSTALL_DIR="${INSTALL_DIR:-${PROJECT_ROOT}/output/ios}"
 
@@ -113,15 +117,34 @@ build_ios_arch() {
     rm -rf "${tmpdir}"
 }
 
-# Build for device and simulator (arm64 only — Intel Macs are EOL)
+# Build for device (arm64) and both simulator slices (arm64 + x86_64).
+# Three slices are required:
+#   - iphoneos-arm64:        physical iPhone/iPad devices
+#   - iphonesimulator-arm64: Apple-silicon Mac simulator
+#   - iphonesimulator-x86_64 Intel Mac simulator (still needed for engineers
+#                            on Intel hardware and some CI runners)
 build_ios_arch "arm64" "iphoneos"
 build_ios_arch "arm64" "iphonesimulator"
+build_ios_arch "x86_64" "iphonesimulator"
 
 # Public headers only (not the 200+ internal graphviz headers)
 HEADER_DIR="${BUILD_DIR}/public-headers"
 rm -rf "${HEADER_DIR}"
 mkdir -p "${HEADER_DIR}"
 cp "${WRAPPER_SRC}/graphviz_api.h" "${HEADER_DIR}/"
+
+# Combine the two simulator slices into a single fat archive so that
+# xcodebuild -create-xcframework sees exactly one library entry per
+# platform (device vs simulator).  Passing two separate iphonesimulator
+# .a files to -create-xcframework is NOT supported and will error with
+# "error: library found in multiple slice locations for the same platform".
+log_info "Lipo-ing simulator slices (arm64 + x86_64)..."
+SIMULATOR_FAT="${BUILD_DIR}/iphonesimulator-fat/out"
+mkdir -p "${SIMULATOR_FAT}"
+lipo -create \
+    "${BUILD_DIR}/iphonesimulator-arm64/out/libGraphviz.a" \
+    "${BUILD_DIR}/iphonesimulator-x86_64/out/libGraphviz.a" \
+    -output "${SIMULATOR_FAT}/libGraphviz.a"
 
 # Create XCFramework
 log_info "Creating XCFramework..."
@@ -130,7 +153,7 @@ mkdir -p "${INSTALL_DIR}"
 
 xcodebuild -create-xcframework \
     -library "${BUILD_DIR}/iphoneos-arm64/out/libGraphviz.a" -headers "${HEADER_DIR}" \
-    -library "${BUILD_DIR}/iphonesimulator-arm64/out/libGraphviz.a" -headers "${HEADER_DIR}" \
+    -library "${SIMULATOR_FAT}/libGraphviz.a" -headers "${HEADER_DIR}" \
     -output "${INSTALL_DIR}/Graphviz.xcframework"
 
 log_info "Verifying outputs..."
